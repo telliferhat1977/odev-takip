@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Öğrenci Ödev Takip Sistemi</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f4f6f9; color: #333; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        .section { background: #fff; padding: 25px; margin-bottom: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2 { color: #34495e; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50; }
+        input[type="text"], input[type="number"], input[type="date"], select, input[type="search"] {
+            width: 100%; padding: 12px; border: 1px solid #bdc3c7; border-radius: 6px; font-size: 1rem;
+        }
+        input:focus, select:focus { outline: none; border-color: #3498db; box-shadow: 0 0 8px rgba(52,152,219,0.3); }
+        button { padding: 10px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; margin-right: 8px; }
+        button:hover { background: #2980b9; }
+        button.edit { background: #f39c12; }
+        button.edit:hover { background: #e67e22; }
+        button.delete { background: #e74c3c; }
+        button.delete:hover { background: #c0392b; }
+        button.secondary { background: #95a5a6; }
+        button.secondary:hover { background: #7f8c8d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #3498db; color: white; }
+        tr:hover { background: #f1f1f1; }
+        .message { padding: 20px; margin: 20px 0; border-radius: 8px; font-weight: bold; font-size: 1.2rem; text-align: center; }
+        .success { background: #d5f5e3; color: #27ae60; border: 2px solid #27ae60; }
+        .error { background: #fadbd8; color: #e74c3c; border: 2px solid #e74c3c; }
+        .radio-group { display: flex; gap: 30px; margin: 20px 0; font-size: 1.1rem; }
+        .radio-item { display: flex; align-items: center; gap: 10px; }
+        .radio-item input { transform: scale(1.5); }
+        .filter-group { display: flex; gap: 15px; align-items: end; flex-wrap: wrap; margin-bottom: 20px; }
+        .search-group { margin-bottom: 15px; }
+        .file-upload { padding: 20px; border: 2px dashed #3498db; border-radius: 8px; text-align: center; background: #ecf0f1; cursor: pointer; }
+        .file-upload:hover { background: #d6dbdf; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .stat-box { background: #ecf0f1; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: bold; color: #3498db; }
+        .stat-label { font-size: 1rem; color: #2c3e50; }
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            table, thead, tbody, th, td, tr { display: block; }
+            thead tr { position: absolute; top: -9999px; left: -9999px; }
+            tr { border: 1px solid #ccc; margin-bottom: 10px; border-radius: 8px; padding: 10px; }
+            td { border: none; position: relative; padding-left: 50%; }
+            td:before { content: attr(data-label); position: absolute; left: 10px; width: 45%; font-weight: bold; }
+            .filter-group { flex-direction: column; }
+            .radio-group { flex-direction: column; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Öğrenci Ödev Takip Sistemi</h1>
+
+        <!-- Bölüm 1: Öğrenci Ekle / Düzenle + Toplu Yükleme -->
+        <div class="section">
+            <h2 id="ekleBaslik">Öğrenci Ekle</h2>
+            
+            <div class="form-group">
+                <label>Sınıf</label>
+                <input type="text" id="sinif" placeholder="Örn: 10-A">
+            </div>
+            <div class="form-group">
+                <label>Öğrenci Adı Soyadı</label>
+                <input type="text" id="ad" placeholder="Örn: Ahmet Yılmaz">
+            </div>
+            <div class="form-group">
+                <label>Öğrenci No</label>
+                <input type="number" id="no" placeholder="Örn: 12345">
+            </div>
+            <button id="kaydetBtn" onclick="ogrenciKaydet()">Öğrenci Ekle</button>
+            <button id="iptalBtn" onclick="duzenlemeIptal()" style="display:none">İptal</button>
+            <div id="ekleMessage"></div>
+            
+            <h3 style="margin-top:30px">Toplu Yükle (Excel/CSV)</h3>
+            <p>Dosya formatı: İlk satır başlık → <strong>Sınıf</strong>, <strong>Öğrenci Adı</strong>, <strong>Öğrenci No</strong></p>
+            <div class="file-upload" onclick="document.getElementById('topluFile').click()">
+                📂 Dosya Seç (XLSX, XLS veya CSV)
+                <input type="file" id="topluFile" accept=".xlsx,.xls,.csv" style="display:none">
+            </div>
+            <div id="topluMessage"></div>
+        </div>
+
+        <!-- Bölüm 2: Kayıtlı Öğrenciler -->
+        <div class="section">
+            <h2>Kayıtlı Öğrenciler</h2>
+            <div class="search-group">
+                <label>Arama (Ad veya No)</label>
+                <input type="search" id="ogrenciArama" placeholder="Öğrenci ara..." oninput="ogrenciTabloGuncelle()">
+            </div>
+            <div class="filter-group">
+                <div class="form-group" style="flex:1">
+                    <label>Sınıf Filtresi</label>
+                    <select id="ogrenciSinifFilter" onchange="ogrenciTabloGuncelle()">
+                        <option value="">Tüm Sınıflar</option>
+                    </select>
+                </div>
+            </div>
+            <table id="ogrenciTablo">
+                <thead>
+                    <tr>
+                        <th>Sınıf</th>
+                        <th>Öğrenci Adı</th>
+                        <th>Öğrenci No</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Bölüm 3: Ödev Durumu Kaydet -->
+        <div class="section">
+            <h2>Ödev Durumu Kaydet</h2>
+            <div class="form-group">
+                <label>Sınıf Seç</label>
+                <select id="odevSinifSelect" onchange="ogrenciListesiGuncelle()">
+                    <option value="">-- Sınıf Seçin --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Öğrenci Seç</label>
+                <select id="odevOgrenciSelect" onchange="ogrenciSecildi()" disabled>
+                    <option value="">-- Önce Sınıf Seçin --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Öğrenci No (otomatik)</label>
+                <input type="text" id="odevNo" readonly style="background:#ecf0f1;">
+            </div>
+            <div class="form-group">
+                <label>Öğrenci Adı (otomatik)</label>
+                <input type="text" id="odevAd" readonly style="background:#ecf0f1;">
+            </div>
+            <div class="form-group">
+                <label>Tarih</label>
+                <input type="date" id="odevTarih">
+            </div>
+            <div class="radio-group">
+                <div class="radio-item">
+                    <input type="radio" name="odevDurum" id="odevYapti" value="true">
+                    <label for="odevYapti">✅ Ödevi Yaptı</label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="odevDurum" id="odevYapmadi" value="false">
+                    <label for="odevYapmadi">❌ Ödevi Yapmadı</label>
+                </div>
+            </div>
+            <button onclick="odevKaydet()">Kaydet</button>
+            <div id="odevMessage"></div>
+        </div>
+
+        <!-- Bölüm 4: Tüm Ödev Geçmişi -->
+        <div class="section">
+            <h2>Tüm Ödev Geçmişi</h2>
+            <div class="search-group">
+                <label>Arama (Ad veya No)</label>
+                <input type="search" id="odevArama" placeholder="Öğrenci ara..." oninput="odevTabloGuncelle()">
+            </div>
+            <div class="filter-group">
+                <div class="form-group" style="flex:1">
+                    <label>Sınıf Filtresi</label>
+                    <select id="odevSinifFilter" onchange="odevTabloGuncelle()">
+                        <option value="">Tüm Sınıflar</option>
+                    </select>
+                </div>
+            </div>
+            <table id="odevTablo">
+                <thead>
+                    <tr>
+                        <th>Sınıf</th>
+                        <th>Öğrenci Adı</th>
+                        <th>Öğrenci No</th>
+                        <th>Tarih</th>
+                        <th>Durum</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Bölüm 5: Ödev İstatistikleri -->
+        <div class="section">
+            <h2>Ödev İstatistikleri</h2>
+            <div class="filter-group">
+                <div class="form-group" style="flex:1">
+                    <label>Sınıf Seç</label>
+                    <select id="istatistikSinif" onchange="istatistikGuncelle()">
+                        <option value="">Tüm Sınıflar</option>
+                    </select>
+                </div>
+            </div>
+            <div class="stats-grid" id="istatistikKutular"></div>
+        </div>
+
+        <!-- Bölüm 6: Veri Yedekleme -->
+        <div class="section">
+            <h2>Veri Yedekleme</h2>
+            <button onclick="veriExport()">Verileri İndir (JSON)</button>
+            <button class="secondary" onclick="document.getElementById('importFile').click()">Verileri Yükle (JSON)</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="veriImport(event)">
+            <div id="yedekMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Bugünün tarihi
+        document.getElementById('odevTarih').value = new Date().toISOString().split('T')[0];
+
+        // Veriler
+        let ogrenciler = JSON.parse(localStorage.getItem('ogrenciler')) || [];
+        let odevler = JSON.parse(localStorage.getItem('odevler')) || [];
+
+        // Düzenleme modu
+        let duzenlenenNo = null;
+
+        // Toplu yükleme
+        document.getElementById('topluFile').addEventListener('change', topluOgrenciYukle);
+
+        function topluOgrenciYukle(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    let workbook;
+                    if (file.name.endsWith('.csv')) {
+                        workbook = XLSX.read(ev.target.result, { type: 'string' });
+                    } else {
+                        workbook = XLSX.read(ev.target.result, { type: 'binary' });
+                    }
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(firstSheet, { header: ['sinif', 'ad', 'no'], range: 1 });
+
+                    let eklenen = 0;
+                    let hatalar = [];
+
+                    json.forEach(row => {
+                        const sinif = (row.sinif || '').toString().trim();
+                        const ad = (row.ad || '').toString().trim();
+                        const no = (row.no || '').toString().trim();
+
+                        if (!sinif || !ad || !no) {
+                            hatalar.push(`Eksik veri: ${JSON.stringify(row)}`);
+                            return;
+                        }
+
+                        if (ogrenciler.some(o => o.no === no)) {
+                            hatalar.push(`Numara çakışması: ${no}`);
+                            return;
+                        }
+
+                        ogrenciler.push({ sinif, ad, no });
+                        eklenen++;
+                    });
+
+                    localStorage.setItem('ogrenciler', JSON.stringify(ogrenciler));
+                    guncelleTum();
+
+                    let mesaj = `${eklenen} öğrenci eklendi!`;
+                    if (hatalar.length > 0) mesaj += `<br>Hatalar (${hatalar.length}):<br>${hatalar.join('<br>')}`;
+                    mesajGoster('topluMessage', mesaj, eklenen > 0 ? 'success' : 'error');
+                } catch (err) {
+                    mesajGoster('topluMessage', 'Dosya okunamadı!', 'error');
+                }
+            };
+
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        // Sınıf seçenekleri
+        function sinifOptionsGuncelle() {
+            const siniflar = [...new Set(ogrenciler.map(o => o.sinif))].sort();
+            const selects = ['ogrenciSinifFilter', 'odevSinifFilter', 'istatistikSinif', 'odevSinifSelect'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = id === 'odevSinifSelect' ? '<option value="">-- Sınıf Seçin --</option>' : '<option value="">Tüm Sınıflar</option>';
+                siniflar.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    select.appendChild(opt);
+                });
+            });
+        }
+
+        // Ödev için öğrenci listesi
+        function ogrenciListesiGuncelle() {
+            const sinif = document.getElementById('odevSinifSelect').value;
+            const ogrenciSelect = document.getElementById('odevOgrenciSelect');
+            
+            ogrenciSelect.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
+            ogrenciSelect.disabled = !sinif;
+
+            if (sinif) {
+                const sinifOgrencileri = ogrenciler.filter(o => o.sinif === sinif).sort((a,b) => a.ad.localeCompare(b.ad));
+                sinifOgrencileri.forEach(ogr => {
+                    const opt = document.createElement('option');
+                    opt.value = ogr.no;
+                    opt.textContent = `${ogr.ad} (${ogr.no})`;
+                    ogrenciSelect.appendChild(opt);
+                });
+            }
+
+            document.getElementById('odevNo').value = '';
+            document.getElementById('odevAd').value = '';
+            document.querySelectorAll('input[name="odevDurum"]').forEach(r => r.checked = false);
+        }
+
+        function ogrenciSecildi() {
+            const no = document.getElementById('odevOgrenciSelect').value;
+            const ogr = ogrenciler.find(o => o.no === no);
+
+            if (ogr) {
+                document.getElementById('odevNo').value = ogr.no;
+                document.getElementById('odevAd').value = ogr.ad;
+                mevcutOdevYukle(no);
+            } else {
+                document.getElementById('odevNo').value = '';
+                document.getElementById('odevAd').value = '';
+                document.querySelectorAll('input[name="odevDurum"]').forEach(r => r.checked = false);
+            }
+        }
+
+        // Öğrenci tablosu
+        function ogrenciTabloGuncelle() {
+            const filter = document.getElementById('ogrenciSinifFilter').value;
+            const arama = document.getElementById('ogrenciArama').value.toLowerCase();
+            const tbody = document.querySelector('#ogrenciTablo tbody');
+            tbody.innerHTML = '';
+
+            ogrenciler
+                .filter(o => (!filter || o.sinif === filter) && 
+                             (o.ad.toLowerCase().includes(arama) || o.no.includes(arama)))
+                .forEach(ogr => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td data-label="Sınıf">${ogr.sinif}</td>
+                        <td data-label="Ad">${ogr.ad}</td>
+                        <td data-label="No">${ogr.no}</td>
+                        <td data-label="İşlem">
+                            <button class="edit" data-no="${ogr.no}">Düzenle</button>
+                            <button class="delete" data-no="${ogr.no}">Sil</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+        }
+
+        // Event delegation
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('#ogrenciTablo').addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete')) {
+                    const no = e.target.dataset.no;
+                    ogrenciSil(no);
+                }
+                if (e.target.classList.contains('edit')) {
+                    const no = e.target.dataset.no;
+                    ogrenciDuzenle(no);
+                }
+            });
+
+            document.querySelector('#odevTablo').addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete')) {
+                    const no = e.target.dataset.no;
+                    const tarih = e.target.dataset.tarih;
+                    odevSil(no, tarih);
+                }
+            });
+
+            guncelleTum();
+        });
+
+        // Düzenleme
+        function ogrenciDuzenle(no) {
+            const ogr = ogrenciler.find(o => o.no === no);
+            if (!ogr) return;
+
+            duzenlenenNo = no;
+
+            document.getElementById('sinif').value = ogr.sinif;
+            document.getElementById('ad').value = ogr.ad;
+            document.getElementById('no').value = ogr.no;
+
+            document.getElementById('ekleBaslik').textContent = 'Öğrenci Düzenle';
+            document.getElementById('kaydetBtn').textContent = 'Güncelle';
+            document.getElementById('iptalBtn').style.display = 'inline-block';
+        }
+
+        function duzenlemeIptal() {
+            duzenlenenNo = null;
+            document.getElementById('sinif').value = '';
+            document.getElementById('ad').value = '';
+            document.getElementById('no').value = '';
+
+            document.getElementById('ekleBaslik').textContent = 'Öğrenci Ekle';
+            document.getElementById('kaydetBtn').textContent = 'Öğrenci Ekle';
+            document.getElementById('iptalBtn').style.display = 'none';
+        }
+
+        function ogrenciKaydet() {
+            const sinif = document.getElementById('sinif').value.trim();
+            const ad = document.getElementById('ad').value.trim();
+            const yeniNo = document.getElementById('no').value.trim();
+
+            if (!sinif || !ad || !yeniNo) {
+                mesajGoster('ekleMessage', 'Tüm alanları doldurun!', 'error');
+                return;
+            }
+
+            if (duzenlenenNo && duzenlenenNo !== yeniNo) {
+                if (ogrenciler.some(o => o.no === yeniNo)) {
+                    mesajGoster('ekleMessage', 'Yeni numara zaten kullanılıyor!', 'error');
+                    return;
+                }
+            } else if (!duzenlenenNo && ogrenciler.some(o => o.no === yeniNo)) {
+                mesajGoster('ekleMessage', 'Bu numara zaten var!', 'error');
+                return;
+            }
+
+            if (duzenlenenNo) {
+                const index = ogrenciler.findIndex(o => o.no === duzenlenenNo);
+                const eskiNo = ogrenciler[index].no;
+
+                ogrenciler[index] = { sinif, ad, no: yeniNo };
+
+                if (eskiNo !== yeniNo) {
+                    odevler.forEach(o => {
+                        if (o.no === eskiNo) o.no = yeniNo;
+                    });
+                }
+
+                mesajGoster('ekleMessage', 'Öğrenci başarıyla güncellendi!', 'success');
+            } else {
+                ogrenciler.push({ sinif, ad, no: yeniNo });
+                mesajGoster('ekleMessage', 'Öğrenci başarıyla eklendi!', 'success');
+            }
+
+            localStorage.setItem('ogrenciler', JSON.stringify(ogrenciler));
+            localStorage.setItem('odevler', JSON.stringify(odevler));
+
+            duzenlemeIptal();
+            guncelleTum();
+        }
+
+        function ogrenciSil(no) {
+            if (!confirm(`Öğrenci no ${no} silinsin mi? (İlgili tüm ödevler de silinecek)`)) return;
+
+            ogrenciler = ogrenciler.filter(o => o.no !== no);
+            odevler = odevler.filter(o => o.no !== no);
+
+            localStorage.setItem('ogrenciler', JSON.stringify(ogrenciler));
+            localStorage.setItem('odevler', JSON.stringify(odevler));
+
+            guncelleTum();
+            mesajGoster('ekleMessage', 'Öğrenci ve ödevleri silindi!', 'success');
+        }
+
+        // Ödev tablosu
+        function odevTabloGuncelle() {
+            const filter = document.getElementById('odevSinifFilter').value;
+            const arama = document.getElementById('odevArama').value.toLowerCase();
+            const tbody = document.querySelector('#odevTablo tbody');
+            tbody.innerHTML = '';
+
+            odevler.forEach(o => {
+                const ogr = ogrenciler.find(og => og.no === o.no);
+                if (!ogr) return;
+                if (filter && ogr.sinif !== filter) return;
+                if (!ogr.ad.toLowerCase().includes(arama) && !o.no.includes(arama)) return;
+
+                const durum = o.yapti ? '✅ Yaptı' : '❌ Yapmadı';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td data-label="Sınıf">${ogr.sinif}</td>
+                    <td data-label="Ad">${ogr.ad}</td>
+                    <td data-label="No">${o.no}</td>
+                    <td data-label="Tarih">${o.tarih}</td>
+                    <td data-label="Durum">${durum}</td>
+                    <td data-label="İşlem"><button class="delete" data-no="${o.no}" data-tarih="${o.tarih}">Sil</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function odevSil(no, tarih) {
+            if (!confirm(`${tarih} tarihindeki ödev kaydı silinsin mi?`)) return;
+
+            odevler = odevler.filter(o => !(o.no === no && o.tarih === tarih));
+            localStorage.setItem('odevler', JSON.stringify(odevler));
+
+            odevTabloGuncelle();
+            istatistikGuncelle();
+        }
+
+        // İstatistik
+        function istatistikGuncelle() {
+            const filter = document.getElementById('istatistikSinif').value;
+            const kutular = document.getElementById('istatistikKutular');
+            kutular.innerHTML = '';
+
+            let ilgiliOgrenciler = ogrenciler;
+            if (filter) ilgiliOgrenciler = ogrenciler.filter(o => o.sinif === filter);
+
+            if (ilgiliOgrenciler.length === 0) {
+                kutular.innerHTML = '<p>Seçilen sınıfta öğrenci yok.</p>';
+                return;
+            }
+
+            const ilgiliNo = ilgiliOgrenciler.map(o => o.no);
+            const ilgiliOdevler = odevler.filter(o => ilgiliNo.includes(o.no));
+
+            const toplamOdev = ilgiliOdevler.length;
+            const yapilan = ilgiliOdevler.filter(o => o.yapti).length;
+            const yapilmayan = toplamOdev - yapilan;
+            const oran = toplamOdev > 0 ? Math.round((yapilan / toplamOdev) * 100) : 0;
+
+            const stats = [
+                { label: 'Toplam Öğrenci', value: ilgiliOgrenciler.length },
+                { label: 'Toplam Ödev Kaydı', value: toplamOdev },
+                { label: 'Yapılan Ödev', value: yapilan },
+                { label: 'Yapılmayan Ödev', value: yapilmayan },
+                { label: 'Yapma Oranı %', value: `%${oran}` }
+            ];
+
+            stats.forEach(s => {
+                const box = document.createElement('div');
+                box.className = 'stat-box';
+                box.innerHTML = `<div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div>`;
+                kutular.appendChild(box);
+            });
+        }
+
+        // Mevcut ödev yükle
+        function mevcutOdevYukle(no) {
+            const tarih = document.getElementById('odevTarih').value;
+            const mevcut = odevler.find(o => o.no === no && o.tarih === tarih);
+            
+            if (mevcut) {
+                document.getElementById('odevYapti').checked = mevcut.yapti;
+                document.getElementById('odevYapmadi').checked = !mevcut.yapti;
+            } else {
+                document.querySelectorAll('input[name="odevDurum"]').forEach(r => r.checked = false);
+            }
+        }
+
+        // Ödev kaydet
+        function odevKaydet() {
+            const no = document.getElementById('odevNo').value.trim();
+            const tarih = document.getElementById('odevTarih').value;
+
+            if (!no || !tarih) {
+                mesajGoster('odevMessage', 'Sınıf, öğrenci ve tarih seçin!', 'error');
+                return;
+            }
+
+            const yaptiRadio = document.getElementById('odevYapti');
+            const yapmadiRadio = document.getElementById('odevYapmadi');
+
+            if (!yaptiRadio.checked && !yapmadiRadio.checked) {
+                mesajGoster('odevMessage', 'Lütfen "Yaptı" veya "Yapmadı" seçin!', 'error');
+                return;
+            }
+
+            const yapti = yaptiRadio.checked;
+
+            const index = odevler.findIndex(o => o.no === no && o.tarih === tarih);
+            if (index > -1) {
+                odevler[index].yapti = yapti;
+            } else {
+                odevler.push({ no, tarih, yapti });
+            }
+
+            localStorage.setItem('odevler', JSON.stringify(odevler));
+            odevTabloGuncelle();
+            istatistikGuncelle();
+            mesajGoster('odevMessage', 'Ödev durumu başarıyla kaydedildi!', 'success');
+        }
+
+        // Yedekleme
+        function veriExport() {
+            const veri = { ogrenciler, odevler };
+            const blob = new Blob([JSON.stringify(veri, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'odev-takip_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            mesajGoster('yedekMessage', 'Veriler başarıyla indirildi!', 'success');
+        }
+
+        function veriImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const veri = JSON.parse(e.target.result);
+                    if (veri.ogrenciler && veri.odevler) {
+                        ogrenciler = veri.ogrenciler;
+                        odevler = veri.odevler;
+                        localStorage.setItem('ogrenciler', JSON.stringify(ogrenciler));
+                        localStorage.setItem('odevler', JSON.stringify(odevler));
+                        guncelleTum();
+                        mesajGoster('yedekMessage', 'Veriler başarıyla yüklendi!', 'success');
+                    } else {
+                        mesajGoster('yedekMessage', 'Geçersiz dosya!', 'error');
+                    }
+                } catch (err) {
+                    mesajGoster('yedekMessage', 'Dosya okunamadı!', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function mesajGoster(id, text, type) {
+            const el = document.getElementById(id);
+            el.innerHTML = text;
+            el.className = 'message ' + type;
+            setTimeout(() => el.innerHTML = '', 10000); // 10 saniye görünür
+        }
+
+        function guncelleTum() {
+            sinifOptionsGuncelle();
+            ogrenciTabloGuncelle();
+            odevTabloGuncelle();
+            istatistikGuncelle();
+            ogrenciListesiGuncelle();
+        }
+
+        // Başlangıç
+        guncelleTum();
+    </script>
+</body>
+</html>
