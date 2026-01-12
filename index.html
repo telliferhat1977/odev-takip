@@ -5,35 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>📘 Ödev Takip Sistemi</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#3498db">
 <style>
 body{font-family:Arial,sans-serif;background:#f4f6f8;margin:0;padding:10px}
-h1,h2{text-align:center;margin:5px}
+h1,h2{text-align:center}
 .section{background:#fff;padding:15px;margin-bottom:15px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.1)}
-input,select,button{width:100%;padding:14px;margin-top:6px;margin-bottom:12px;font-size:1rem}
-button{border:none;border-radius:10px;background:#3498db;color:#fff;cursor:pointer}
+input,select,button{width:100%;padding:12px;margin-top:6px;margin-bottom:12px;font-size:1rem}
+button{border:none;border-radius:10px;background:#3498db;color:#fff}
 button.secondary{background:#7f8c8d}
 button.danger{background:#e74c3c}
 .ogrenci{background:#ecf0f1;padding:10px;border-radius:10px;margin-bottom:8px}
 .row{display:flex;gap:8px;margin-top:8px}
 .row button{flex:1}
 .gecmis{font-size:0.9rem;margin-top:6px}
+.header-title{text-align:center;font-weight:bold;font-size:1.2rem;margin-bottom:8px}
 </style>
 </head>
 <body>
 
-<h1 id="okulAd"></h1>
-<h2 id="ogretmenAd"></h2>
+<h1>📘 Ödev Takip Sistemi</h1>
 
-<div class="section" id="ilkGiris">
-<h2>📌 Bilgileri Giriniz</h2>
-<input id="okulInp" placeholder="Okul Adı">
-<input id="ogretmenInp" placeholder="Öğretmen Adı">
-<button id="kaydetBilgi">Kaydet</button>
+<!-- Okul ve Öğretmen Adı -->
+<div class="section" id="okulOgretmenSection">
+<h2>🎓 Okul ve Öğretmen Bilgisi</h2>
+<input id="okul" placeholder="Okul Adı">
+<input id="ogretmen" placeholder="Öğretmen Adı">
+<button id="kaydetOkulBtn">Kaydet</button>
 </div>
 
-<div id="mainContent" style="display:none;">
+<div id="mainApp" style="display:none">
 
 <div class="section">
 <h2>👨‍🎓 Öğrenci Yönetimi</h2>
@@ -50,14 +50,14 @@ button.danger{background:#e74c3c}
 <div class="section">
 <h2>📋 Ödev Kontrol</h2>
 <input type="date" id="odevTarih">
-<select id="odevSinif"></select>
+<select id="odevSinif"><option value="">Sınıf Seç</option></select>
 <select id="odevOgrenciSec" size="6"></select>
 <div id="odevIslem"></div>
 </div>
 
 <div class="section">
 <h2>📜 Ödev Geçmişi</h2>
-<select id="gecmisSinif"><option value="">Tüm Sınıflar</option></select>
+<select id="gecmisSinif"><option value="">Sınıf Seç</option></select>
 <select id="gecmisOgrenci"></select>
 <div id="gecmisListe"></div>
 </div>
@@ -80,36 +80,13 @@ button.danger{background:#e74c3c}
 <button class="secondary" onclick="jsonYukle()">⬆️ Yedekten Yükle</button>
 </div>
 
+</div>
+
 <script>
 let ogrenciler = JSON.parse(localStorage.getItem('ogrenciler')) || [];
 let odevler = JSON.parse(localStorage.getItem('odevler')) || [];
 let seciliNo = null;
 
-// Okul ve öğretmen bilgisi
-let okul = localStorage.getItem('okul') || '';
-let ogretmen = localStorage.getItem('ogretmen') || '';
-
-const okulAdH = document.getElementById('okulAd');
-const ogretmenAdH = document.getElementById('ogretmenAd');
-const ilkGiris = document.getElementById('ilkGiris');
-const mainContent = document.getElementById('mainContent');
-const okulInp = document.getElementById('okulInp');
-const ogretmenInp = document.getElementById('ogretmenInp');
-const kaydetBilgi = document.getElementById('kaydetBilgi');
-
-if(okul && ogretmen){
-    okulAdH.textContent=okul; ogretmenAdH.textContent=ogretmen; mainContent.style.display='block'; ilkGiris.style.display='none';
-}
-
-kaydetBilgi.onclick=()=>{
-    if(!okulInp.value || !ogretmenInp.value){alert('Boş bırakmayın'); return;}
-    okul = okulInp.value; ogretmen = ogretmenInp.value;
-    localStorage.setItem('okul',okul); localStorage.setItem('ogretmen',ogretmen);
-    okulAdH.textContent=okul; ogretmenAdH.textContent=ogretmen;
-    mainContent.style.display='block'; ilkGiris.style.display='none';
-}
-
-// Öğrenci yönetimi
 const adInp = document.getElementById('ad');
 const noInp = document.getElementById('no');
 const sinifInp = document.getElementById('sinif');
@@ -120,201 +97,250 @@ const sonucDiv = document.getElementById('aramaSonuc');
 const odevSinif = document.getElementById('odevSinif');
 const odevOgrenciSec = document.getElementById('odevOgrenciSec');
 const odevTarih = document.getElementById('odevTarih');
-const gecmisSinif = document.getElementById('gecmisSinif');
 const gecmisOgrenci = document.getElementById('gecmisOgrenci');
 const gecmisListe = document.getElementById('gecmisListe');
+const gecmisSinif = document.getElementById('gecmisSinif');
+
+const okulInp = document.getElementById('okul');
+const ogretmenInp = document.getElementById('ogretmen');
+const kaydetOkulBtn = document.getElementById('kaydetOkulBtn');
 
 odevTarih.value = new Date().toISOString().split('T')[0];
 
+// Okul ve öğretmen kaydı
+if(localStorage.getItem('okul') && localStorage.getItem('ogretmen')){
+    okulInp.value = localStorage.getItem('okul');
+    ogretmenInp.value = localStorage.getItem('ogretmen');
+    document.getElementById('okulOgretmenSection').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+}
+
+kaydetOkulBtn.onclick = ()=>{
+    if(!okulInp.value.trim()||!ogretmenInp.value.trim()){alert('Her iki alanı da doldurun');return;}
+    localStorage.setItem('okul',okulInp.value.trim());
+    localStorage.setItem('ogretmen',ogretmenInp.value.trim());
+    document.getElementById('okulOgretmenSection').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+};
+
+// Öğrenci kaydet
 function kaydet(){
-    const ad=adInp.value.trim(); const no=noInp.value.trim(); const sinif=sinifInp.value.trim();
-    if(!ad||!no||!sinif){alert('Tüm alanları doldurun'); return;}
-    if(seciliNo){
-        const o = ogrenciler.find(x=>x.no===seciliNo);
-        o.ad=ad; o.no=no; o.sinif=sinif;
-        seciliNo=null; kaydetBtn.textContent='Kaydet';
-    } else {
-        if(ogrenciler.some(x=>x.no===no)){alert('Numara zaten var'); return;}
-        ogrenciler.push({ad,no,sinif});
-    }
-    localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
-    temizle(); siniflariDoldur(); ogrenciDropdown(); gecmisSiniflariDoldur(); gecmisOgrenciDropdown(); alert('Kaydedildi');
+ const ad = adInp.value.trim();
+ const no = noInp.value.trim();
+ const sinif = sinifInp.value.trim();
+ if(!ad||!no||!sinif){alert('Tüm alanları doldurun');return;}
+ if(seciliNo){
+  const o = ogrenciler.find(x=>x.no===seciliNo);
+  o.ad=ad; o.no=no; o.sinif=sinif;
+  seciliNo=null; kaydetBtn.textContent='Kaydet';
+ } else {
+  if(ogrenciler.some(x=>x.no===no)){alert('Numara zaten var');return;}
+  ogrenciler.push({ad,no,sinif});
+ }
+ localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
+ temizle(); siniflariDoldur(); ogrenciDropdown(); sinifGuncelle(); alert('Kaydedildi');
 }
 
 function temizle(){adInp.value=noInp.value=sinifInp.value='';}
-function iptal(){temizle(); seciliNo=null; kaydetBtn.textContent='Kaydet';}
+function iptal(){temizle();seciliNo=null;kaydetBtn.textContent='Kaydet';}
 
 function arama(){
-    const q = aramaInp.value.toLowerCase(); sonucDiv.innerHTML='';
-    if(!q) return;
-    ogrenciler.filter(o=>o.ad.toLowerCase().includes(q)||o.no.includes(q)).forEach(o=>{
-        const d=document.createElement('div'); d.className='ogrenci';
-        d.innerHTML=`<b>${o.ad}</b><br>No:${o.no} | ${o.sinif}
-        <div class='row'>
-            <button onclick="duzenle('${o.no}')">Güncelle</button>
-            <button class='danger' onclick="sil('${o.no}')">Sil</button>
-        </div>`;
-        sonucDiv.appendChild(d);
-    });
+ const q = aramaInp.value.toLowerCase(); sonucDiv.innerHTML='';
+ if(!q) return;
+ ogrenciler.filter(o=>o.ad.toLowerCase().includes(q)||o.no.includes(q)).forEach(o=>{
+  const d=document.createElement('div'); d.className='ogrenci';
+  d.innerHTML=`<b>${o.ad}</b><br>No:${o.no} | ${o.sinif}
+  <div class='row'>
+   <button onclick="duzenle('${o.no}')">Güncelle</button>
+   <button class='danger' onclick="sil('${o.no}')">Sil</button>
+  </div>`;
+  sonucDiv.appendChild(d);
+ });
 }
 
 function duzenle(no){
-    const o=ogrenciler.find(x=>x.no===no);
-    adInp.value=o.ad; noInp.value=o.no; sinifInp.value=o.sinif;
-    seciliNo=no; kaydetBtn.textContent='Güncelle';
+ const o=ogrenciler.find(x=>x.no===no);
+ adInp.value=o.ad; noInp.value=o.no; sinifInp.value=o.sinif;
+ seciliNo=no; kaydetBtn.textContent='Güncelle';
 }
 
 function sil(no){
-    if(!confirm('Silinsin mi?')) return;
-    ogrenciler=ogrenciler.filter(x=>x.no!==no);
-    odevler=odevler.filter(x=>x.no!==no);
-    localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
-    localStorage.setItem('odevler',JSON.stringify(odevler));
-    siniflariDoldur(); ogrenciDropdown(); gecmisSiniflariDoldur(); gecmisOgrenciDropdown(); sonucDiv.innerHTML='';
+ if(!confirm('Silinsin mi?')) return;
+ ogrenciler=ogrenciler.filter(x=>x.no!==no);
+ odevler=odevler.filter(x=>x.no!==no);
+ localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
+ localStorage.setItem('odevler',JSON.stringify(odevler));
+ siniflariDoldur(); ogrenciDropdown(); sinifGuncelle(); arama();
 }
 
+// Sınıf dropdown doldur
 function siniflariDoldur(){
-    odevSinif.innerHTML='<option value="">Sınıf Seç</option>';
-    const siniflar=[...new Set(ogrenciler.map(o=>o.sinif.trim().toUpperCase()))];
-    siniflar.forEach(s=>{const opt=document.createElement('option'); opt.value=s; opt.textContent=s; odevSinif.appendChild(opt);});
+ odevSinif.innerHTML='<option value="">Sınıf Seç</option>';
+ const siniflar=[...new Set(ogrenciler.map(o=>o.sinif.trim().toUpperCase()))];
+ siniflar.forEach(s=>{const opt=document.createElement('option');opt.value=s;opt.textContent=s;odevSinif.appendChild(opt);});
 }
 
+// Ödev kontrol dropdown
 odevSinif.onchange=()=>{
-    odevOgrenciSec.innerHTML='';
-    ogrenciler.filter(o=>o.sinif.toUpperCase()===odevSinif.value)
-        .forEach(o=>{const opt=document.createElement('option'); opt.value=o.no; opt.textContent=`${o.ad} (${o.no})`; odevOgrenciSec.appendChild(opt);});
+ odevOgrenciSec.innerHTML='';
+ ogrenciler.filter(o=>o.sinif.toUpperCase()===odevSinif.value)
+ .forEach(o=>{const opt=document.createElement('option');opt.value=o.no;opt.textContent=`${o.ad} (${o.no})`;odevOgrenciSec.appendChild(opt);});
 };
 
+// Ödev kaydet
 odevOgrenciSec.onchange=()=>{
-    const no=odevOgrenciSec.value;
-    const div=document.getElementById('odevIslem');
-    div.innerHTML=`<button onclick="odevKaydet('${no}',true)">✅ Yaptı</button>
-                     <button onclick="odevKaydet('${no}',false)">❌ Yapmadı</button>
-                     <button class='danger' onclick="odevKaydet('${no}',null)">🚫 Gelmedi</button>`;
+ const no=odevOgrenciSec.value;
+ const div=document.getElementById('odevIslem');
+ div.innerHTML=`<button onclick="odevKaydet('${no}','Yaptı')">✅ Yaptı</button>
+ <button onclick="odevKaydet('${no}','Yapmadı')" class='danger'>❌ Yapmadı</button>
+ <button onclick="odevKaydet('${no}','Gelmedi')" class='secondary'>🚫 Gelmedi</button>`;
 };
 
-function odevKaydet(no,yapti){
-    const tarih=odevTarih.value;
-    const i=odevler.findIndex(o=>o.no===no&&o.tarih===tarih);
-    if(i>-1) odevler[i].yapti=yapti;
-    else odevler.push({no,tarih,yapti});
-    localStorage.setItem('odevler',JSON.stringify(odevler));
-    alert('Kaydedildi');
+function odevKaydet(no,durum){
+ const tarih=odevTarih.value;
+ const i=odevler.findIndex(o=>o.no===no&&o.tarih===tarih);
+ if(i>-1) odevler[i].yapti=durum; else odevler.push({no,tarih,yapti:durum});
+ localStorage.setItem('odevler',JSON.stringify(odevler)); alert('Kaydedildi');
 }
 
-// Geçmiş
-function gecmisSiniflariDoldur(){
-    gecmisSinif.innerHTML = '<option value="">Tüm Sınıflar</option>';
-    const siniflar = [...new Set(ogrenciler.map(o=>o.sinif))];
-    siniflar.forEach(s=>{
-        const opt = document.createElement('option');
-        opt.value = s; opt.textContent = s; gecmisSinif.appendChild(opt);
-    });
+// Ödev geçmişi
+function ogrenciDropdown(){
+ gecmisOgrenci.innerHTML='<option value="">Öğrenci Seç</option>';
+ ogrenciler.forEach(o=>{
+    const opt=document.createElement('option');
+    opt.value=o.no;
+    opt.textContent=`${o.ad} (${o.no})`;
+    gecmisOgrenci.appendChild(opt);
+ });
+}
+function sinifGuncelle(){
+ gecmisSinif.innerHTML='<option value="">Sınıf Seç</option>';
+ [...new Set(ogrenciler.map(o=>o.sinif))].forEach(s=>{
+    const opt=document.createElement('option'); opt.value=s; opt.textContent=s; gecmisSinif.appendChild(opt);
+ });
 }
 
+// Filtreli ödev geçmişi
+gecmisSinif.onchange=()=>{gecmisOgrenciDropdown();}
 function gecmisOgrenciDropdown(){
     const secilenSinif = gecmisSinif.value;
     gecmisOgrenci.innerHTML = '<option value="">Öğrenci Seç</option>';
     ogrenciler.filter(o=>!secilenSinif || o.sinif===secilenSinif)
         .forEach(o=>{
             const opt=document.createElement('option');
-            opt.value=o.no; opt.textContent=o.ad; gecmisOgrenci.appendChild(opt);
+            opt.value=o.no; 
+            opt.textContent=`${o.ad} (${o.no})`; 
+            gecmisOgrenci.appendChild(opt);
         });
 }
-
-gecmisSinif.addEventListener('change',()=>{
-    gecmisOgrenciDropdown(); gecmisListe.innerHTML='';
-});
 
 gecmisOgrenci.onchange=()=>{
     gecmisListe.innerHTML='';
     const secilenNo = gecmisOgrenci.value;
     if(!secilenNo) return;
     odevler.filter(o=>o.no===secilenNo).forEach(o=>{
+        const ogr = ogrenciler.find(x=>x.no===o.no);
         const d=document.createElement('div');
         d.className='ogrenci gecmis';
-        d.textContent = `${o.tarih} → ${o.yapti===null?'Gelmedi':o.yapti?'Yaptı':'Yapmadı'}`;
+        d.textContent = `${o.tarih} → ${o.yapti}`;
         gecmisListe.appendChild(d);
     });
 };
 
-// PDF
+// PDF Günlük
 function gunlukPdf(){
-    const tarih=document.getElementById('gunlukPdfTarih').value;
-    if(!tarih){alert('Tarih seçin'); return;}
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const sinifSet = [...new Set(ogrenciler.map(o=>o.sinif))];
-    sinifSet.forEach(s=>{
-        const sinifOgr = ogrenciler.filter(o=>o.sinif===s);
-        let y=20; doc.addPage();
-        doc.setFontSize(14); doc.text(`${s} - Günlük Ödev Raporu`,10,10);
-        doc.setFontSize(11); doc.text(`Okul: ${okul}`,10,15); doc.text(`Öğretmen: ${ogretmen}`,10,18);
-        doc.setFontSize(10); doc.text(`No | Ad Soyad | Durum`,10,22);
-        sinifOgr.forEach((ogr,i)=>{
-            const odev = odevler.find(x=>x.no===ogr.no && x.tarih===tarih);
-            const durum = odev? (odev.yapti===null?'Gelmedi':odev.yapti?'Yaptı':'Yapmadı') : 'Gelmedi';
-            doc.text(`${ogr.no} | ${ogr.ad} | ${durum}`,10,25+i*8);
-            if(25+i*8>280){doc.addPage(); y=20;}
-        });
-        doc.save(`gunluk_${s}_${tarih}.pdf`);
-    });
+ const tarih=document.getElementById('gunlukPdfTarih').value;
+ if(!tarih){alert('Tarih seçin');return;}
+ const { jsPDF } = window.jspdf;
+ const doc=new jsPDF('p','pt','a4');
+ const sinifSet=[...new Set(odevler.filter(o=>o.tarih===tarih).map(o=>ogrenciler.find(x=>x.no===o.no)?.sinif).filter(Boolean))];
+ sinifSet.forEach(s=>{
+     let y=50;
+     const data = odevler.filter(o=>o.tarih===tarih).filter(o=>{
+         const ogr=ogrenciler.find(x=>x.no===o.no); return ogr?ogr.sinif===s:false;
+     }).map(o=>{
+         const ogr=ogrenciler.find(x=>x.no===o.no); return {no:ogr.no, ad:ogr.ad, durum:o.yapti};
+     });
+     doc.setFontSize(14); doc.text(`${s} - Günlük Ödev Raporu`,40,30);
+     // Tablo başlık
+     doc.setFontSize(12);
+     doc.setFillColor(200,200,200);
+     doc.rect(40, y, 500, 20, 'F');
+     doc.setTextColor(0,0,0);
+     doc.text("No",45,y+15); doc.text("Ad Soyad",90,y+15); doc.text("Durum",400,y+15);
+     y+=20;
+     data.forEach((d,i)=>{
+         if(y>750){doc.addPage(); y=50; doc.setFillColor(200,200,200); doc.rect(40, y, 500, 20, 'F'); doc.setTextColor(0,0,0);
+         doc.text("No",45,y+15); doc.text("Ad Soyad",90,y+15); doc.text("Durum",400,y+15); y+=20;}
+         doc.text(d.no,45,y+15); doc.text(d.ad,90,y+15); doc.text(d.durum,400,y+15); y+=20;
+     });
+     const filename = `gunluk_${s}_${tarih}.pdf`;
+     doc.save(filename);
+ });
 }
 
+// PDF Aylık
 function aylikPdf(){
-    const ay=document.getElementById('raporAy').value;
-    if(!ay){alert('Ay seçin'); return;}
-    const { jsPDF } = window.jspdf;
-    const sinifSet = [...new Set(ogrenciler.map(o=>o.sinif))];
-    sinifSet.forEach(s=>{
-        const sinifOgr = ogrenciler.filter(o=>o.sinif===s);
-        const tarihler = [...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).map(o=>o.tarih))];
-        let y=20; doc.addPage();
-        doc.setFontSize(14); doc.text(`${s} - Aylık Ödev Raporu`,10,10);
-        doc.setFontSize(11); doc.text(`Okul: ${okul}`,10,15); doc.text(`Öğretmen: ${ogretmen}`,10,18);
-        doc.setFontSize(10); doc.text(`No | Ad Soyad | ${tarihler.join(' | ')}`,10,22);
-        sinifOgr.forEach((ogr,i)=>{
-            const durumlar = tarihler.map(t=>{
-                const odev = odevler.find(x=>x.no===ogr.no && x.tarih===t);
-                return odev? (odev.yapti===null?'Gelmedi':odev.yapti?'Yaptı':'Yapmadı'):'Gelmedi';
-            }).join(' | ');
-            doc.text(`${ogr.no} | ${ogr.ad} | ${durumlar}`,10,25+i*8);
-            if(25+i*8>280){doc.addPage(); y=20;}
-        });
-        doc.save(`aylik_${s}_${ay}.pdf`);
-    });
+ const ay=document.getElementById('raporAy').value;
+ if(!ay){alert('Ay seçin');return;}
+ const { jsPDF } = window.jspdf;
+ const doc=new jsPDF('p','pt','a4');
+ const sinifSet=[...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).map(o=>ogrenciler.find(x=>x.no===o.no)?.sinif).filter(Boolean))];
+ sinifSet.forEach(s=>{
+     let y=50;
+     const tarihSet = [...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).filter(o=>{
+         const ogr=ogrenciler.find(x=>x.no===o.no); return ogr?ogr.sinif===s:false;
+     }).map(o=>o.tarih))];
+     const data = ogrenciler.filter(o=>o.sinif===s).map(o=>{
+         const satir={no:o.no, ad:o.ad};
+         tarihSet.forEach(t=>{ 
+             const odev = odevler.find(od=>od.no===o.no && od.tarih===t);
+             satir[t] = odev?odev.yapti:'Gelmedi';
+         });
+         return satir;
+     });
+     doc.setFontSize(14); doc.text(`${s} - Aylık Ödev Raporu`,40,30);
+     // Başlıklar
+     doc.setFontSize(12); doc.setFillColor(200,200,200); doc.rect(40,y,500+(tarihSet.length-1)*50,20,'F'); doc.setTextColor(0,0,0);
+     doc.text("No",45,y+15); doc.text("Ad Soyad",90,y+15);
+     tarihSet.forEach((t,i)=>{doc.text(t,140+i*50,y+15)});
+     y+=20;
+     data.forEach((d)=>{
+         if(y>750){doc.addPage(); y=50; doc.setFillColor(200,200,200); doc.rect(40,y,500+(tarihSet.length-1)*50,20,'F'); doc.setTextColor(0,0,0);
+         doc.text("No",45,y+15); doc.text("Ad Soyad",90,y+15); 
+         tarihSet.forEach((t,i)=>{doc.text(t,140+i*50,y+15)}); y+=20;}
+         doc.text(d.no,45,y+15); doc.text(d.ad,90,y+15);
+         tarihSet.forEach((t,i)=>{doc.text(d[t]||'Gelmedi',140+i*50,y+15)});
+         y+=20;
+     });
+     const filename = `aylik_${s}_${ay}.pdf`;
+     doc.save(filename);
+ });
 }
 
-// Yedekleme
+// JSON Yedekleme
 function jsonYedekAl(){
-    const blob = new Blob([JSON.stringify({ogrenciler,odevler,okul,ogretmen},null,2)],{type:'application/json'});
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='odev_yedek.json'; a.click();
-}
-function jsonYukle(){
-    const f=document.getElementById('jsonFile').files[0]; if(!f) return;
-    const r=new FileReader(); r.onload=e=>{
-        const d=JSON.parse(e.target.result);
-        d.ogrenciler.forEach(o=>{if(!ogrenciler.some(x=>x.no===o.no)) ogrenciler.push(o);});
-        d.odevler.forEach(o=>{if(!odevler.some(x=>x.no===o.no && x.tarih===o.tarih)) odevler.push(o);});
-        if(d.okul) {okul=d.okul; localStorage.setItem('okul',okul); okulAdH.textContent=okul;}
-        if(d.ogretmen){ogretmen=d.ogretmen; localStorage.setItem('ogretmen',ogretmen); ogretmenAdH.textContent=ogretmen;}
-        localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
-        localStorage.setItem('odevler',JSON.stringify(odevler));
-        siniflariDoldur(); ogrenciDropdown(); gecmisSiniflariDoldur(); gecmisOgrenciDropdown();
-        alert('Yüklendi');
-    }; r.readAsText(f);
+ const blob=new Blob([JSON.stringify({ogrenciler,odevler},null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='odev_yedek.json';a.click();
 }
 
-// Genel fonksiyonlar
-function ogrenciDropdown(){
-    odevOgrenciSec.innerHTML='<option value="">Öğrenci Seç</option>';
-    ogrenciler.forEach(o=>{const opt=document.createElement('option'); opt.value=o.no; opt.textContent=o.ad;gecmisOgrenci.appendChild(opt);});
+function jsonYukle(){
+ const f=document.getElementById('jsonFile').files[0]; if(!f) return;
+ const r=new FileReader(); r.onload=e=>{
+  const d=JSON.parse(e.target.result);
+  d.ogrenciler.forEach(o=>{if(!ogrenciler.some(x=>x.no===o.no)) ogrenciler.push(o);});
+  d.odevler.forEach(o=>{if(!odevler.some(x=>x.no===o.no&&x.tarih===o.tarih)) odevler.push(o);});
+  localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
+  localStorage.setItem('odevler',JSON.stringify(odevler));
+  siniflariDoldur(); ogrenciDropdown(); sinifGuncelle(); alert('Yüklendi');
+ };
+ r.readAsText(f);
 }
 
 kaydetBtn.addEventListener('click',kaydet);
 iptalBtn.addEventListener('click',iptal);
 aramaInp.addEventListener('input',arama);
-siniflariDoldur(); ogrenciDropdown(); gecmisSiniflariDoldur(); gecmisOgrenciDropdown();
+siniflariDoldur(); ogrenciDropdown(); sinifGuncelle();
 </script>
 </body>
 </html>
