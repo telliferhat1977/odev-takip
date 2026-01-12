@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ödev Takip Sistemi</title>
+<title>📘 Ödev Takip Sistemi</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<meta name="theme-color" content="#3498db">
 <style>
 body{font-family:Arial,sans-serif;background:#f4f6f8;margin:0;padding:10px}
 h1,h2{text-align:center}
 .section{background:#fff;padding:15px;margin-bottom:15px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.1)}
-input,select,button{width:100%;padding:14px;margin-top:6px;margin-bottom:12px;font-size:1rem}
+input,select,button{width:100%;padding:12px;margin-top:6px;margin-bottom:12px;font-size:1rem}
 button{border:none;border-radius:10px;background:#3498db;color:#fff}
 button.secondary{background:#7f8c8d}
 button.danger{background:#e74c3c}
@@ -17,12 +18,24 @@ button.danger{background:#e74c3c}
 .row{display:flex;gap:8px;margin-top:8px}
 .row button{flex:1}
 .gecmis{font-size:0.9rem;margin-top:6px}
+.header{text-align:center;margin-bottom:20px}
+.header h1{margin-bottom:5px}
 </style>
 </head>
 <body>
 
-<h1>📘 Ödev Takip Sistemi</h1>
+<div class="section" id="firstScreen">
+<h2>🏫 Okul ve 👩‍🏫 Öğretmen Adı</h2>
+<input id="okul" placeholder="Okul Adı">
+<input id="ogretmen" placeholder="Öğretmen Adı">
+<button id="kaydetOkul">Kaydet</button>
+</div>
 
+<div id="mainScreen" style="display:none">
+<div class="header">
+<h1 id="okulHeader"></h1>
+<h2 id="ogretmenHeader"></h2>
+</div>
 <div class="section">
 <h2>👨‍🎓 Öğrenci Yönetimi</h2>
 <input id="ad" placeholder="Ad Soyad">
@@ -41,7 +54,6 @@ button.danger{background:#e74c3c}
 <select id="odevSinif"></select>
 <select id="odevOgrenciSec" size="6"></select>
 <div id="odevIslem"></div>
-<button onclick="odevGelmedi()">❌ Gelmedi</button>
 </div>
 
 <div class="section">
@@ -67,51 +79,78 @@ button.danger{background:#e74c3c}
 <input type="file" id="jsonFile" accept="application/json">
 <button class="secondary" onclick="jsonYukle()">⬆️ Yedekten Yükle</button>
 </div>
+</div>
 
 <script>
-let ogrenciler=JSON.parse(localStorage.getItem('ogrenciler'))||[];
-let odevler=JSON.parse(localStorage.getItem('odevler'))||[];
-let seciliNo=null;
+let ogrenciler = JSON.parse(localStorage.getItem('ogrenciler')) || [];
+let odevler = JSON.parse(localStorage.getItem('odevler')) || [];
+let seciliNo = null;
 
-const adInp=document.getElementById('ad');
-const noInp=document.getElementById('no');
-const sinifInp=document.getElementById('sinif');
-const kaydetBtn=document.getElementById('kaydetBtn');
-const iptalBtn=document.getElementById('iptalBtn');
-const aramaInp=document.getElementById('arama');
-const sonucDiv=document.getElementById('aramaSonuc');
-const odevSinif=document.getElementById('odevSinif');
-const odevOgrenciSec=document.getElementById('odevOgrenciSec');
-const odevTarih=document.getElementById('odevTarih');
-const gecmisOgrenci=document.getElementById('gecmisOgrenci');
-const gecmisListe=document.getElementById('gecmisListe');
+const adInp = document.getElementById('ad');
+const noInp = document.getElementById('no');
+const sinifInp = document.getElementById('sinif');
+const kaydetBtn = document.getElementById('kaydetBtn');
+const iptalBtn = document.getElementById('iptalBtn');
+const aramaInp = document.getElementById('arama');
+const sonucDiv = document.getElementById('aramaSonuc');
+const odevSinif = document.getElementById('odevSinif');
+const odevOgrenciSec = document.getElementById('odevOgrenciSec');
+const odevTarih = document.getElementById('odevTarih');
+const gecmisOgrenci = document.getElementById('gecmisOgrenci');
+const gecmisListe = document.getElementById('gecmisListe');
+const firstScreen = document.getElementById('firstScreen');
+const mainScreen = document.getElementById('mainScreen');
+const okulInp = document.getElementById('okul');
+const ogretmenInp = document.getElementById('ogretmen');
+const kaydetOkulBtn = document.getElementById('kaydetOkul');
+const okulHeader = document.getElementById('okulHeader');
+const ogretmenHeader = document.getElementById('ogretmenHeader');
 
-odevTarih.value=new Date().toISOString().split('T')[0];
+odevTarih.value = new Date().toISOString().split('T')[0];
+
+// İlk açılış kontrol
+let okulSaved = localStorage.getItem('okul');
+let ogretmenSaved = localStorage.getItem('ogretmen');
+if(okulSaved && ogretmenSaved){
+ firstScreen.style.display='none'; mainScreen.style.display='block';
+ okulHeader.textContent = okulSaved; ogretmenHeader.textContent = ogretmenSaved;
+}
+
+kaydetOkulBtn.onclick=()=>{
+ const okul = okulInp.value.trim();
+ const ogretmen = ogretmenInp.value.trim();
+ if(!okul||!ogretmen){alert('Tüm alanları doldurun'); return;}
+ localStorage.setItem('okul',okul);
+ localStorage.setItem('ogretmen',ogretmen);
+ okulHeader.textContent=okul; ogretmenHeader.textContent=ogretmen;
+ firstScreen.style.display='none'; mainScreen.style.display='block';
+}
 
 function kaydet(){
- const ad=adInp.value.trim();
- const no=noInp.value.trim();
- const sinif=sinifInp.value.trim();
+ const ad = adInp.value.trim();
+ const no = noInp.value.trim();
+ const sinif = sinifInp.value.trim();
  if(!ad||!no||!sinif){alert('Tüm alanları doldurun');return;}
  if(seciliNo){
-  const o=ogrenciler.find(x=>x.no===seciliNo);
-  o.ad=ad;o.no=no;o.sinif=sinif;seciliNo=null;kaydetBtn.textContent='Kaydet';
- }else{
+  const o = ogrenciler.find(x=>x.no===seciliNo);
+  o.ad=ad; o.no=no; o.sinif=sinif;
+  seciliNo=null; kaydetBtn.textContent='Kaydet';
+ } else {
   if(ogrenciler.some(x=>x.no===no)){alert('Numara zaten var');return;}
   ogrenciler.push({ad,no,sinif});
  }
  localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
- temizle();siniflariDoldur();ogrenciDropdown();alert('Kaydedildi');
+ temizle(); siniflariDoldur(); ogrenciDropdown(); alert('Kaydedildi');
 }
 
 function temizle(){adInp.value=noInp.value=sinifInp.value='';}
 function iptal(){temizle();seciliNo=null;kaydetBtn.textContent='Kaydet';}
 
 function arama(){
- const q=aramaInp.value.toLowerCase();sonucDiv.innerHTML='';
+ const q = aramaInp.value.toLowerCase(); sonucDiv.innerHTML='';
  if(!q) return;
  ogrenciler.filter(o=>o.ad.toLowerCase().includes(q)||o.no.includes(q)).forEach(o=>{
-  const d=document.createElement('div');d.className='ogrenci';
+  const d=document.createElement('div'); d.className='ogrenci';
   d.innerHTML=`<b>${o.ad}</b><br>No:${o.no} | ${o.sinif}
   <div class='row'>
    <button onclick="duzenle('${o.no}')">Güncelle</button>
@@ -123,8 +162,8 @@ function arama(){
 
 function duzenle(no){
  const o=ogrenciler.find(x=>x.no===no);
- adInp.value=o.ad;noInp.value=o.no;sinifInp.value=o.sinif;
- seciliNo=no;kaydetBtn.textContent='Güncelle';
+ adInp.value=o.ad; noInp.value=o.no; sinifInp.value=o.sinif;
+ seciliNo=no; kaydetBtn.textContent='Güncelle';
 }
 
 function sil(no){
@@ -133,7 +172,7 @@ function sil(no){
  odevler=odevler.filter(x=>x.no!==no);
  localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
  localStorage.setItem('odevler',JSON.stringify(odevler));
- siniflariDoldur();ogrenciDropdown();sonucDiv.innerHTML='';
+ siniflariDoldur(); ogrenciDropdown(); sonucDiv.innerHTML='';
 }
 
 function siniflariDoldur(){
@@ -151,23 +190,16 @@ odevSinif.onchange=()=>{
 odevOgrenciSec.onchange=()=>{
  const no=odevOgrenciSec.value;
  const div=document.getElementById('odevIslem');
- div.innerHTML=`<button onclick="odevKaydet('${no}',true)">✅ Yaptı</button><button class='danger' onclick="odevKaydet('${no}',false)">❌ Yapmadı</button>`;
+ div.innerHTML=`<button onclick="odevKaydet('${no}','yapti')">✅ Yaptı</button>
+ <button onclick="odevKaydet('${no}','yapmadi')">❌ Yapmadı</button>
+ <button onclick="odevKaydet('${no}','gelmedi')" class='danger'>🚫 Gelmedi</button>`;
 };
 
-function odevKaydet(no,yapti){
+function odevKaydet(no,durum){
  const tarih=odevTarih.value;
  const i=odevler.findIndex(o=>o.no===no&&o.tarih===tarih);
- if(i>-1) odevler[i].yapti=yapti; else odevler.push({no,tarih,yapti});
+ if(i>-1) odevler[i].durum=durum; else odevler.push({no,tarih,durum});
  localStorage.setItem('odevler',JSON.stringify(odevler)); alert('Kaydedildi');
-}
-
-function odevGelmedi(){
- const no=odevOgrenciSec.value;
- if(!no){alert('Öğrenci seçin');return;}
- const tarih=odevTarih.value;
- const i=odevler.findIndex(o=>o.no===no&&o.tarih===tarih);
- if(i>-1) odevler[i].yapti='gelmedi'; else odevler.push({no,tarih,yapti:'gelmedi'});
- localStorage.setItem('odevler',JSON.stringify(odevler)); alert('Öğrenci gelmedi olarak kaydedildi');
 }
 
 function ogrenciDropdown(){
@@ -178,7 +210,7 @@ function ogrenciDropdown(){
 gecmisOgrenci.onchange=()=>{
  gecmisListe.innerHTML='';
  odevler.filter(o=>o.no===gecmisOgrenci.value).forEach(o=>{
-  const d=document.createElement('div');d.className='ogrenci gecmis';d.textContent=`${o.tarih} → ${o.yapti==='gelmedi'?'Gelmedi':o.yapti?'Yaptı':'Yapmadı'}`;gecmisListe.appendChild(d);
+  const d=document.createElement('div');d.className='ogrenci gecmis';d.textContent=`${o.tarih} → ${o.durum}`;gecmisListe.appendChild(d);
  });
 };
 
@@ -188,23 +220,27 @@ function gunlukPdf(){
  const { jsPDF } = window.jspdf;
  const doc=new jsPDF();
  let y=20;
- const sinifSet=[...new Set(odevler.filter(o=>o.tarih===tarih).map(o=>{
-  const ogr=ogrenciler.find(x=>x.no===o.no); return ogr?ogr.sinif:'';
- }).filter(Boolean))];
+ const sinifSet=[...new Set(odevler.filter(o=>o.tarih===tarih).map(o=>ogrenciler.find(x=>x.no===o.no)?.sinif).filter(Boolean))];
  sinifSet.forEach(sinif=>{
-  doc.text(`Okul Adı: ${localStorage.getItem('okul')||''}`,10,10);
-  doc.text(`Öğretmen: ${localStorage.getItem('ogretmen')||''}`,10,15);
-  doc.text(`${sinif} - Günlük Ödev Raporu (${tarih})`,10,20);
-  y=30;
-  const ogren=ogrenciler.filter(o=>o.sinif===sinif);
-  for(let i=0;i<ogren.length;i++){
-   const ogr=ogren[i];
-   const dur=odevler.find(o=>o.no===ogr.no&&o.tarih===tarih);
-   const durum=dur?dur.yapti==='gelmedi'?'Gelmedi':dur.yapti?'Yaptı':'Yapmadı':'-';
-   doc.text(`${ogr.no} | ${ogr.ad} | ${durum}`,10,y);y+=8;
-   if(y>280){doc.addPage();y=20;}
-  }
-  doc.addPage();
+  doc.setFontSize(16); doc.text(`${sinif} - Günlük Ödev Raporu`,10, y); y+=10;
+  doc.setFontSize(12);
+  const data = [['No','Ad Soyad','Durum']];
+  odevler.filter(o=>o.tarih===tarih).forEach(o=>{
+   const ogr=ogrenciler.find(x=>x.no===o.no); if(!ogr||ogr.sinif!==sinif) return;
+   data.push([ogr.no,ogr.ad,o.durum]);
+  });
+  let startX=10; let startY=y; let rowHeight=8;
+  data.forEach((row,idx)=>{
+   let x=startX;
+   row.forEach((cell,j)=>{
+    if(idx===0){doc.setFillColor(200,200,200); doc.rect(x,startY,row[j].length*4+10,rowHeight,'F');}
+    doc.text(cell.toString(),x+2,startY+6);
+    x+=50;
+   });
+   startY+=rowHeight; y=startY;
+   if(y>280){doc.addPage(); y=20; startY=y;}
+  });
+  y+=10;
  });
  doc.save(`gunluk_rapor_${tarih}.pdf`);
 }
@@ -215,23 +251,32 @@ function aylikPdf(){
  const { jsPDF } = window.jspdf;
  const doc=new jsPDF();
  let y=20;
- const sinifSet=[...new Set(ogrenciler.map(o=>o.sinif))];
+ const tarihler=[...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).map(o=>o.tarih).sort())];
+ const sinifSet=[...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).map(o=>ogrenciler.find(x=>x.no===o.no)?.sinif).filter(Boolean))];
  sinifSet.forEach(sinif=>{
-  doc.text(`Okul Adı: ${localStorage.getItem('okul')||''}`,10,10);
-  doc.text(`Öğretmen: ${localStorage.getItem('ogretmen')||''}`,10,15);
-  doc.text(`${sinif} - Aylık Ödev Raporu (${ay})`,10,20);
-  y=30;
-  const tarihler=[...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).map(o=>o.tarih))];
-  tarihler.forEach(tarih=>{
-   doc.text(`${tarih}`,10,y); y+=8;
-   ogrenciler.filter(o=>o.sinif===sinif).forEach(ogr=>{
-    const dur=odevler.find(o=>o.no===ogr.no&&o.tarih===tarih);
-    const durum=dur?dur.yapti==='gelmedi'?'Gelmedi':dur.yapti?'Yaptı':'Yapmadı':'-';
-    doc.text(`${ogr.no} | ${ogr.ad} | ${durum}`,10,y);y+=8;
-    if(y>280){doc.addPage();y=20;}
+  doc.setFontSize(16); doc.text(`${sinif} - Aylık Ödev Raporu`,10, y); y+=10;
+  doc.setFontSize(12);
+  let data = [['No','Ad Soyad',...tarihler]];
+  ogrenciler.filter(o=>o.sinif===sinif).forEach(ogr=>{
+   let row=[ogr.no,ogr.ad];
+   tarihler.forEach(t=>{
+    const odev=odevler.find(x=>x.no===ogr.no && x.tarih===t);
+    row.push(odev?odev.durum:'');
    });
+   data.push(row);
   });
-  doc.addPage();
+  let startX=10; let startY=y; let rowHeight=8;
+  data.forEach((row,idx)=>{
+   let x=startX;
+   row.forEach((cell,j)=>{
+    if(idx===0){doc.setFillColor(200,200,200); doc.rect(x,startY,40,rowHeight,'F');}
+    doc.text(cell.toString(),x+2,startY+6);
+    x+=50;
+   });
+   startY+=rowHeight; y=startY;
+   if(y>280){doc.addPage(); y=20; startY=y;}
+  });
+  y+=10;
  });
  doc.save(`aylik_rapor_${ay}.pdf`);
 }
@@ -249,7 +294,7 @@ function jsonYukle(){
   d.odevler.forEach(o=>{if(!odevler.some(x=>x.no===o.no&&x.tarih===o.tarih)) odevler.push(o);});
   localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
   localStorage.setItem('odevler',JSON.stringify(odevler));
-  siniflariDoldur();ogrenciDropdown();alert('Yüklendi');
+  siniflariDoldur(); ogrenciDropdown(); alert('Yüklendi');
  };
  r.readAsText(f);
 }
@@ -257,7 +302,7 @@ function jsonYukle(){
 kaydetBtn.addEventListener('click',kaydet);
 iptalBtn.addEventListener('click',iptal);
 aramaInp.addEventListener('input',arama);
-siniflariDoldur();ogrenciDropdown();
+siniflariDoldur(); ogrenciDropdown();
 </script>
 </body>
 </html>
