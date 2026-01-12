@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ödev Takip Sistemi</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;background:#f2f4f7;margin:0;padding:8px}
+h1,h2,h3{text-align:center;margin:6px 0}
+.section{background:#fff;padding:12px;margin-bottom:12px;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+input,select,button{width:100%;padding:12px;margin-top:6px;margin-bottom:10px;font-size:1rem;border-radius:10px;border:1px solid #ccc}
+button{border:none;background:#3498db;color:#fff;font-weight:bold}
+button.secondary{background:#7f8c8d}
+button.danger{background:#e74c3c}
+.row{display:flex;gap:8px}
+.row button{flex:1}
+.ogrenci{background:#eef1f4;padding:10px;border-radius:10px;margin-bottom:8px}
+#baslikEkran{position:sticky;top:0;background:#3498db;color:#fff;padding:8px;border-radius:0 0 14px 14px;z-index:10;text-align:center}
+small{color:#eaeaea}
+</style>
+</head>
+<body>
+
+<div id="baslikEkran" style="display:none">
+  <h3 id="okulAdi"></h3>
+  <small id="ogretmenAdi"></small>
+</div>
+
+<div id="ilkAcilis" class="section">
+<h2>Okul ve Öğretmen Bilgileri</h2>
+<input id="okulInput" placeholder="Okul Adı">
+<input id="ogretmenInput" placeholder="Öğretmen Adı">
+<button id="ilkKaydetBtn">Kaydet</button>
+</div>
+
+<div id="anaEkran" style="display:none">
+<h2>Ödev Takip Sistemi</h2>
+
+<div class="section">
+<h3>Öğrenci Yönetimi</h3>
+<input id="ad" placeholder="Ad Soyad">
+<input id="no" placeholder="Numara">
+<input id="sinif" placeholder="Sınıf (9/A)">
+<button id="kaydetBtn">Kaydet</button>
+<button id="iptalBtn" class="secondary">İptal</button>
+<input id="arama" placeholder="Ara (ad / no)">
+<div id="aramaSonuc"></div>
+</div>
+
+<div class="section">
+<h3>Ödev Kontrol</h3>
+<input type="date" id="odevTarih">
+<select id="odevSinif"></select>
+<select id="odevOgrenciSec" size="5"></select>
+<div id="odevIslem"></div>
+</div>
+
+<div class="section">
+<h3>PDF Rapor</h3>
+<label>Günlük</label>
+<input type="date" id="gunlukPdfTarih">
+<button onclick="gunlukPdf()">Günlük PDF</button>
+<label>Aylık</label>
+<input type="month" id="raporAy">
+<button onclick="aylikPdf()">Aylık PDF</button>
+</div>
+
+<div class="section">
+<h3>Yedekleme</h3>
+<button onclick="jsonYedekAl()">JSON Yedek Al</button>
+<input type="file" id="jsonFile" accept="application/json">
+<button class="secondary" onclick="jsonYukle()">Yedekten Yükle</button>
+</div>
+</div>
+
+<script>
+let ogrenciler = JSON.parse(localStorage.getItem('ogrenciler')) || [];
+let odevler = JSON.parse(localStorage.getItem('odevler')) || [];
+let okulAdi = localStorage.getItem('okulAdi') || '';
+let ogretmenAdi = localStorage.getItem('ogretmenAdi') || '';
+let seciliNo=null;
+
+const maxDate=new Date().toISOString().split('T')[0];
+document.getElementById('odevTarih').max=maxDate;
+
+document.getElementById('gunlukPdfTarih').max=maxDate;
+
+function baslikGoster(){
+ document.getElementById('okulAdi').textContent=okulAdi;
+ document.getElementById('ogretmenAdi').textContent=ogretmenAdi;
+ document.getElementById('baslikEkran').style.display='block';
+}
+
+if(okulAdi&&ogretmenAdi){
+ document.getElementById('ilkAcilis').style.display='none';
+ document.getElementById('anaEkran').style.display='block';
+ baslikGoster();
+}
+
+document.getElementById('ilkKaydetBtn').onclick=()=>{
+ const o=document.getElementById('okulInput').value.trim();
+ const g=document.getElementById('ogretmenInput').value.trim();
+ if(!o||!g)return alert('Alanları doldurun');
+ localStorage.setItem('okulAdi',o);
+ localStorage.setItem('ogretmenAdi',g);
+ okulAdi=o;ogretmenAdi=g;
+ document.getElementById('ilkAcilis').style.display='none';
+ document.getElementById('anaEkran').style.display='block';
+ baslikGoster();
+}
+
+const ad=document.getElementById('ad'),no=document.getElementById('no'),sinif=document.getElementById('sinif');
+
+document.getElementById('kaydetBtn').onclick=()=>{
+ if(!ad.value||!no.value||!sinif.value)return alert('Eksik bilgi');
+ if(seciliNo){
+  let o=ogrenciler.find(x=>x.no===seciliNo);
+  o.ad=ad.value;o.no=no.value;o.sinif=sinif.value;
+  seciliNo=null;
+ }else{
+  if(ogrenciler.some(x=>x.no===no.value))return alert('Numara var');
+  ogrenciler.push({ad:ad.value,no:no.value,sinif:sinif.value});
+ }
+ localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
+ temizle();siniflariDoldur();arama();
+}
+
+document.getElementById('iptalBtn').onclick=()=>{temizle();seciliNo=null};
+function temizle(){ad.value=no.value=sinif.value=''}
+
+function arama(){
+ const q=document.getElementById('arama').value.toLowerCase();
+ const div=document.getElementById('aramaSonuc');div.innerHTML='';
+ ogrenciler.filter(o=>o.ad.toLowerCase().includes(q)||o.no.includes(q)).forEach(o=>{
+  div.innerHTML+=`<div class="ogrenci"><b>${o.ad}</b><br>No:${o.no} | ${o.sinif}
+  <div class="row"><button onclick="duzenle('${o.no}')">Düzenle</button>
+  <button class="danger" onclick="sil('${o.no}')">Sil</button></div></div>`;
+ });
+}
+
+document.getElementById('arama').oninput=arama;
+function duzenle(n){const o=ogrenciler.find(x=>x.no===n);ad.value=o.ad;no.value=o.no;sinif.value=o.sinif;seciliNo=n}
+function sil(n){if(!confirm('Silinsin mi'))return;ogrenciler=ogrenciler.filter(x=>x.no!==n);odevler=odevler.filter(x=>x.no!==n);localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));localStorage.setItem('odevler',JSON.stringify(odevler));siniflariDoldur();arama()}
+
+function siniflariDoldur(){
+ const s=document.getElementById('odevSinif');
+ s.innerHTML='<option value="">Sınıf Seç</option>';
+ [...new Set(ogrenciler.map(o=>o.sinif))].forEach(x=>s.innerHTML+=`<option>${x}</option>`);
+}
+
+siniflariDoldur();
+
+document.getElementById('odevSinif').onchange=e=>{
+ const sec=e.target.value;
+ const o=document.getElementById('odevOgrenciSec');o.innerHTML='';
+ ogrenciler.filter(x=>x.sinif===sec).forEach(x=>o.innerHTML+=`<option value="${x.no}">${x.ad} (${x.no})</option>`);
+}
+
+document.getElementById('odevOgrenciSec').onchange=e=>{
+ const n=e.target.value;
+ document.getElementById('odevIslem').innerHTML=`
+ <button onclick="odevKaydet('${n}','yapti')">Yaptı</button>
+ <button onclick="odevKaydet('${n}','yapmadi')">Yapmadı</button>
+ <button class="secondary" onclick="odevKaydet('${n}','gelmedi')">Gelmedi</button>`;
+}
+
+function odevKaydet(n,d){
+ const t=document.getElementById('odevTarih').value;
+ let i=odevler.findIndex(x=>x.no===n&&x.tarih===t);
+ if(i>-1)odevler[i].durum=d;else odevler.push({no:n,tarih:t,durum:d});
+ localStorage.setItem('odevler',JSON.stringify(odevler));alert('Kaydedildi');
+}
+
+function durumRenk(d){
+ if(d==='Yaptı')return [76,175,80];
+ if(d==='Yapmadı')return [244,67,54];
+ if(d==='Gelmedi')return [158,158,158];
+ return [255,255,255];
+}
+
+function pdfBaslik(doc,baslik){
+ doc.setFillColor(52,152,219);
+ doc.rect(0,0,300,20,'F');
+ doc.setTextColor(255,255,255);
+ doc.setFontSize(12);
+ doc.text(okulAdi+' - '+ogretmenAdi,10,8);
+ doc.setFontSize(14);
+ doc.text(baslik,10,15);
+ doc.setTextColor(0,0,0);
+}
+
+function gunlukPdf(){
+ const t=document.getElementById('gunlukPdfTarih').value;if(!t)return alert('Tarih seç');
+ const {jsPDF}=window.jspdf;const doc=new jsPDF();
+ const siniflar=[...new Set(ogrenciler.map(o=>o.sinif))];
+ siniflar.forEach((s,si)=>{
+  if(si>0)doc.addPage();
+  pdfBaslik(doc,`${s} - Günlük Ödev Raporu`);
+  let y=30;
+  doc.setFillColor(220,220,220);doc.rect(10,y-6,190,8,'F');
+  doc.text('No',12,y);doc.text('Ad Soyad',30,y);doc.text('Durum',150,y);y+=8;
+  ogrenciler.filter(o=>o.sinif===s).forEach(o=>{
+   const r=odevler.find(x=>x.no===o.no&&x.tarih===t);
+   const d=r?(r.durum==='yapti'?'Yaptı':r.durum==='yapmadi'?'Yapmadı':'Gelmedi'):'-';
+   doc.rect(10,y-6,190,8);
+   doc.text(o.no,12,y);doc.text(o.ad,30,y);
+   const renk=durumRenk(d);doc.setFillColor(...renk);doc.rect(140,y-6,60,8,'F');doc.setTextColor(255,255,255);
+   doc.text(d,150,y);doc.setTextColor(0,0,0);y+=8;
+  });
+  doc.save(`gunluk_${s}_${t}.pdf`);
+ });
+}
+
+function aylikPdf(){
+ const ay=document.getElementById('raporAy').value;if(!ay)return alert('Ay seç');
+ const {jsPDF}=window.jspdf;const doc=new jsPDF('l');
+ const siniflar=[...new Set(ogrenciler.map(o=>o.sinif))];
+ siniflar.forEach((s,si)=>{
+  if(si>0)doc.addPage();
+  pdfBaslik(doc,`${s} - Aylık Ödev Raporu`);
+  const tarihler=[...new Set(odevler.filter(o=>o.tarih.startsWith(ay)).map(o=>o.tarih))];
+  let x=10,y=30;
+  doc.setFillColor(220,220,220);doc.rect(x,y-6,280,8,'F');
+  doc.text('No',x+2,y);doc.text('Ad Soyad',x+20,y);
+  tarihler.forEach((t,i)=>doc.text(t,x+80+i*25,y));y+=8;
+  ogrenciler.filter(o=>o.sinif===s).forEach(o=>{
+   doc.rect(x,y-6,280,8);
+   doc.text(o.no,x+2,y);doc.text(o.ad,x+20,y);
+   tarihler.forEach((t,i)=>{
+    const r=odevler.find(x=>x.no===o.no&&x.tarih===t);
+    const d=r?(r.durum==='yapti'?'Yaptı':r.durum==='yapmadi'?'Yapmadı':'Gelmedi'):'-';
+    const renk=durumRenk(d);doc.setFillColor(...renk);doc.rect(x+75+i*25,y-6,25,8,'F');doc.setTextColor(255,255,255);
+    doc.text(d,x+77+i*25,y);doc.setTextColor(0,0,0);
+   });y+=8;
+  });
+  doc.save(`aylik_${s}_${ay}.pdf`);
+ });
+}
+
+function jsonYedekAl(){
+ const b=new Blob([JSON.stringify({ogrenciler,odevler},null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='odev_yedek.json';a.click();
+}
+
+function jsonYukle(){
+ const f=document.getElementById('jsonFile').files[0];if(!f)return;
+ const r=new FileReader();r.onload=e=>{
+  const d=JSON.parse(e.target.result);
+  ogrenciler=d.ogrenciler||[];odevler=d.odevler||[];
+  localStorage.setItem('ogrenciler',JSON.stringify(ogrenciler));
+  localStorage.setItem('odevler',JSON.stringify(odevler));
+  siniflariDoldur();arama();alert('Yüklendi');
+ };
+ r.readAsText(f);
+}
+</script>
+</body>
+</html>
