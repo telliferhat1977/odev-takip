@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Müzik Dünyam</title>
+    <style>
+        :root { --bg-color: #000000; --card: rgba(255,255,255,0.08); --accent: #1db954; --text: #fff; }
+        body { 
+            background: var(--bg-color); color: var(--text); 
+            font-family: -apple-system, system-ui, sans-serif; 
+            margin: 0; padding-bottom: 160px; 
+            transition: background 1.5s ease-in-out;
+            background-attachment: fixed; overflow-x: hidden;
+        }
+        .bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%);
+            z-index: -1;
+        }
+        .app-branding { padding: 50px 20px 10px; }
+        .app-branding p { font-size: 12px; color: var(--accent); margin: 0; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+        .app-branding h1 { 
+            font-size: 36px; font-weight: 800; margin: 5px 0 0; letter-spacing: -1.5px;
+            background: linear-gradient(to bottom, #ffffff, #888888);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header { 
+            padding: 15px 20px; position: sticky; top: 0; 
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            z-index: 1000;
+        }
+        input { 
+            width: 100%; padding: 14px 20px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(255,255,255,0.12); color: #fff; font-size: 16px; outline: none; box-sizing: border-box;
+        }
+        .album-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 15px; }
+        .album-card { background: var(--card); border-radius: 16px; overflow: hidden; backdrop-filter: blur(10px); }
+        .album-card img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #1a1a1a; display: block; }
+        .album-card h4 { font-size: 14px; margin: 10px 10px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .album-card p { font-size: 11px; margin: 0 10px 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .song-list { padding: 15px; }
+        .song-row { display: flex; align-items: center; padding: 12px; margin-bottom: 8px; background: var(--card); border-radius: 12px; }
+        .song-row img { width: 50px; height: 50px; border-radius: 8px; margin-right: 15px; }
+        .footer-player { 
+            position: fixed; bottom: 0; width: 100%; 
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            padding: 15px 20px calc(20px + env(safe-area-inset-bottom)); 
+            display: flex; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); z-index: 2000; box-sizing: border-box; 
+        }
+        .footer-player img { width: 50px; height: 50px; border-radius: 8px; margin-right: 15px; }
+        .play-pause-btn { background: #fff; border: none; border-radius: 50%; width: 48px; height: 48px; color: #000; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        #yt-player { display: none; }
+        #lyrics-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: inherit; z-index: 3000; display: none; flex-direction: column;
+            padding: 100px 30px; box-sizing: border-box; overflow-y: auto; scroll-behavior: smooth;
+        }
+        .lyrics-text { font-size: 24px; font-weight: bold; line-height: 1.7; text-align: center; color: rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body>
+
+<div class="bg-overlay"></div>
+
+<div class="app-branding" id="brand-area">
+    <p id="greeting">YÜKLENİYOR...</p>
+    <h1>Müzik Dünyam</h1>
+</div>
+
+<div class="header">
+    <input type="text" id="searchInput" placeholder="Sanatçı, albüm veya şarkı..." onkeyup="if(event.key==='Enter') searchAlbums(this.value)">
+</div>
+
+<div id="lyrics-overlay">
+    <div style="position: fixed; top: 50px; right: 25px; font-size: 40px;" onclick="toggleLyrics()">×</div>
+    <div id="lyrics-content" class="lyrics-text"></div>
+</div>
+
+<div id="mainContent">
+    <h3 id="viewTitle" style="padding-left: 20px; font-size: 20px; margin-top: 20px;">En Çok Dinlenen Albümler</h3>
+    <div id="displayArea" class="album-grid"></div>
+</div>
+
+<div class="footer-player">
+    <img id="current-img" src="https://via.placeholder.com/50">
+    <div style="flex: 1; overflow: hidden; margin-right:10px;">
+        <div id="current-title" style="font-size: 14px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Şarkı Seç</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span id="current-artist" style="font-size: 12px; color: #aaa;">Müzik Dünyam</span>
+            <button onclick="toggleLyrics()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; font-size:9px; padding:2px 5px; border-radius:3px;">SÖZLER</button>
+        </div>
+    </div>
+    <button class="play-pause-btn" onclick="togglePlayback()" id="playBtn">▶</button>
+    <div id="yt-player"></div>
+</div>
+
+<canvas id="colorCanvas" style="display:none;"></canvas>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+    const YT_API_KEY = "AIzaSyAkWmhLagzkGE_tNUfg7W1jzeWnKdMv1rg";
+    let player;
+    let scrollInterval;
+
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            height: '0', width: '0', videoId: '',
+            playerVars: { 'playsinline': 1 },
+            events: { 'onStateChange': (e) => {
+                document.getElementById('playBtn').innerText = (e.data === 1) ? "⏸" : "▶";
+                if(e.data === 1) startLyricsScroll(); else clearInterval(scrollInterval);
+            }}
+        });
+    }
+
+    function togglePlayback() {
+        if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
+    }
+
+    function toggleLyrics() {
+        const o = document.getElementById('lyrics-overlay');
+        o.style.display = (o.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    async function searchAlbums(query, isInitial = false) {
+        document.getElementById('brand-area').style.display = 'block';
+        const area = document.getElementById('displayArea');
+        area.innerHTML = "<p style='padding:20px; opacity:0.5;'>Listeler güncelleniyor...</p>";
+        
+        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=16&country=tr`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            // Boş sonuç kontrolü
+            if (data.results.length === 0 && isInitial) {
+                searchAlbums('Popüler Albümler'); // Fallback
+                return;
+            }
+            renderAlbums(data.results);
+        } catch (e) { area.innerHTML = "<p style='padding:20px;'>Hata oluştu.</p>"; }
+    }
+
+    function renderAlbums(albums) {
+        const area = document.getElementById('displayArea');
+        area.className = "album-grid";
+        area.innerHTML = albums.map(album => {
+            const fastImg = album.artworkUrl100.replace('100x100bb', '300x300bb');
+            return `
+            <div class="album-card" onclick="loadAlbumTracks(${album.collectionId}, '${album.collectionName.replace(/'/g,"")}', '${fastImg}')">
+                <img src="${fastImg}" loading="lazy">
+                <h4>${album.collectionName}</h4>
+                <p>${album.artistName}</p>
+            </div>`;
+        }).join('');
+    }
+
+    async function loadAlbumTracks(albumId, albumName, albumImg) {
+        window.scrollTo(0,0);
+        document.getElementById('brand-area').style.display = 'none';
+        document.getElementById('viewTitle').innerText = albumName;
+        const area = document.getElementById('displayArea');
+        area.innerHTML = "<p style='padding:20px; opacity:0.5;'>Yükleniyor...</p>";
+        
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${albumId}&entity=song&country=tr`);
+        const data = await res.json();
+        const tracks = data.results.filter(i => i.wrapperType === 'track');
+        
+        area.className = "song-list";
+        area.innerHTML = `<button onclick="location.reload()" style="background:none; border:none; color:#1db954; padding:10px; font-weight:bold;">← LİSTEYE DÖN</button>` + 
+        tracks.map(t => `
+            <div class="song-row" onclick="playSong('${t.artistName} ${t.trackName}', '${t.trackName.replace(/'/g,"")}', '${t.artistName}', '${albumImg}')">
+                <img src="${albumImg}">
+                <div class="info"><h4>${t.trackName}</h4><p>${t.artistName}</p></div>
+            </div>
+        `).join('');
+    }
+
+    async function playSong(query, title, artist, img) {
+        document.getElementById('current-title').innerText = "Yükleniyor...";
+        const yRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query + " official audio")}&key=${YT_API_KEY}&type=video&maxResults=1`);
+        const yData = await yRes.json();
+        
+        if(yData.items && yData.items[0]) {
+            player.loadVideoById(yData.items[0].id.videoId);
+            document.getElementById('current-img').src = img;
+            document.getElementById('current-title').innerText = title;
+            document.getElementById('current-artist').innerText = artist;
+            extractColor(img);
+            fetchLyrics(artist, title);
+        }
+    }
+
+    function extractColor(imgUrl) {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = imgUrl;
+        img.onload = () => {
+            const canvas = document.getElementById('colorCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 5; canvas.height = 5;
+            ctx.drawImage(img, 0, 0, 5, 5);
+            const data = ctx.getImageData(0, 0, 5, 5).data;
+            let r=0, g=0, b=0;
+            for(let i=0; i<data.length; i+=4) { r += data[i]; g += data[i+1]; b += data[i+2]; }
+            const c = data.length/4;
+            document.body.style.background = `rgb(${Math.floor((r/c)*0.3)}, ${Math.floor((g/c)*0.3)}, ${Math.floor((b/c)*0.3)})`;
+        };
+    }
+
+    async function fetchLyrics(artist, title) {
+        const c = document.getElementById('lyrics-content');
+        c.innerHTML = "Sözler aranıyor...";
+        try {
+            const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+            const data = await res.json();
+            c.innerHTML = data.lyrics ? data.lyrics.replace(/\n/g, '<br><br>') : "Söz bulunamadı.";
+        } catch { c.innerHTML = "Sözler yüklenemedi."; }
+    }
+
+    function startLyricsScroll() {
+        clearInterval(scrollInterval);
+        const o = document.getElementById('lyrics-overlay');
+        scrollInterval = setInterval(() => { if(player.getPlayerState() === 1) o.scrollTop += 1; }, 120);
+    }
+
+    window.onload = () => {
+        const hour = new Date().getHours();
+        document.getElementById('greeting').innerText = hour < 12 ? "GÜNAYDIN" : hour < 18 ? "TÜNAYDIN" : "İYİ AKŞAMLAR";
+        // AÇILIŞ: Türkiye'de en çok dinlenen güncel albümler
+        searchAlbums('2025 2026 popular albums Turkey', true);
+    };
+</script>
+</body>
+</html>
