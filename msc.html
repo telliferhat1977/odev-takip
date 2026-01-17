@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Müzik Dünyam">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/plasticine/200/music--v1.png">
+    <title>Müzik Dünyam</title>
+    <style>
+        :root { --bg-color: #000000; --card: rgba(255,255,255,0.05); --accent: #1db954; --text: #fff; }
+        
+        body { 
+            background: var(--bg-color); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding-bottom: 160px; 
+            transition: background 2s ease;
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+
+        .bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%);
+            z-index: -1;
+        }
+
+        /* BAŞLIK VE MARKA */
+        .app-branding { padding: 50px 20px 10px; text-align: left; }
+        .app-branding p { font-size: 13px; color: var(--accent); margin: 0; font-weight: 700; letter-spacing: 2px; }
+        .app-branding h1 { 
+            font-size: 38px; font-weight: 800; margin: 5px 0 0; letter-spacing: -1.5px;
+            background: linear-gradient(to bottom, #ffffff, #aaaaaa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .header { 
+            padding: 15px 20px; position: sticky; top: 0; 
+            background: rgba(0,0,0,0.3); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            z-index: 1000; margin-bottom: 10px;
+        }
+        
+        input { 
+            width: 100%; padding: 15px 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(255,255,255,0.1); color: #fff; font-size: 17px; outline: none; box-sizing: border-box;
+        }
+
+        /* ALBÜM IZGARASI */
+        .album-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 15px; }
+        .album-card { background: var(--card); border-radius: 18px; overflow: hidden; backdrop-filter: blur(10px); transition: 0.3s; }
+        .album-card:active { transform: scale(0.95); }
+        .album-card img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+        .album-card h4 { font-size: 14px; margin: 10px 10px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .album-card p { font-size: 12px; margin: 0 10px 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ŞARKI LİSTESİ */
+        .song-list { padding: 15px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .song-row { display: flex; align-items: center; padding: 12px; margin-bottom: 10px; background: var(--card); border-radius: 14px; backdrop-filter: blur(10px); cursor: pointer; }
+        .song-row img { width: 55px; height: 55px; border-radius: 8px; margin-right: 15px; }
+        .info { flex: 1; overflow: hidden; }
+        .info h4 { margin: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .info p { margin: 4px 0 0; color: #aaa; font-size: 13px; }
+
+        /* SÖZLER PANELİ */
+        #lyrics-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: inherit; z-index: 3000; display: none; flex-direction: column; align-items: center;
+            padding: 120px 30px; box-sizing: border-box; overflow-y: auto; scroll-behavior: smooth;
+        }
+        .lyrics-text { font-size: 26px; font-weight: bold; line-height: 1.8; text-align: center; color: rgba(255,255,255,0.4); }
+        .close-lyrics { position: fixed; top: 50px; right: 25px; font-size: 40px; color: #fff; font-weight: 200; z-index: 3001; cursor: pointer; }
+
+        /* ALT OYNATICI */
+        .footer-player { 
+            position: fixed; bottom: 0; width: 100%; 
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            padding: 15px 20px calc(20px + env(safe-area-inset-bottom)); 
+            display: flex; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); z-index: 2000; box-sizing: border-box; 
+        }
+        .footer-player img { width: 55px; height: 55px; border-radius: 10px; margin-right: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
+        .player-info { flex: 1; overflow: hidden; margin-right: 10px; }
+        .player-controls { display: flex; align-items: center; gap: 12px; }
+        .lyrics-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 5px; font-weight: bold; }
+        .play-pause-btn { background: #fff; border: none; border-radius: 50%; width: 50px; height: 50px; color: #000; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+        #yt-player { display: none; }
+        .back-btn { background: rgba(255,255,255,0.1); color: #fff; border: none; padding: 10px 20px; border-radius: 20px; margin: 10px; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="bg-overlay"></div>
+
+<div class="app-branding" id="brand-area">
+    <p id="greeting">İYİ GÜNLER</p>
+    <h1>Müzik Dünyam</h1>
+</div>
+
+<div class="header">
+    <input type="text" id="searchInput" placeholder="Sanatçı, albüm veya şarkı..." onkeyup="if(event.key==='Enter') searchAlbums(this.value)">
+</div>
+
+<div id="lyrics-overlay">
+    <div class="close-lyrics" onclick="toggleLyrics()">×</div>
+    <div id="lyrics-content" class="lyrics-text"></div>
+</div>
+
+<div class="container" id="mainContent">
+    <h3 id="viewTitle" style="padding-left: 20px; font-size: 22px;">Keşfet</h3>
+    <div id="displayArea" class="album-grid"></div>
+</div>
+
+<div class="footer-player">
+    <img id="current-img" src="https://via.placeholder.com/60">
+    <div class="player-info">
+        <div id="current-title" style="font-size: 15px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Şarkı Seçilmedi</div>
+        <div class="player-controls">
+            <span id="current-artist" style="font-size: 12px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Müzik Dünyam</span>
+            <button class="lyrics-btn" onclick="toggleLyrics()">SÖZLER</button>
+        </div>
+    </div>
+    <button class="play-pause-btn" onclick="togglePlayback()" id="playBtn">▶</button>
+    <div id="yt-player"></div>
+</div>
+
+<canvas id="colorCanvas" style="display:none;"></canvas>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+    const YT_API_KEY = "AIzaSyAkWmhLagzkGE_tNUfg7W1jzeWnKdMv1rg";
+    let player;
+    let scrollInterval;
+
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            height: '0', width: '0', videoId: '',
+            playerVars: { 'playsinline': 1, 'origin': window.location.origin },
+            events: { 'onStateChange': onPlayerStateChange }
+        });
+    }
+
+    function onPlayerStateChange(event) {
+        const btn = document.getElementById('playBtn');
+        if (event.data === 1) {
+            btn.innerText = "⏸";
+            startLyricsScroll();
+        } else {
+            btn.innerText = "▶";
+            clearInterval(scrollInterval);
+        }
+    }
+
+    function togglePlayback() {
+        if (!player) return;
+        (player.getPlayerState() === 1) ? player.pauseVideo() : player.playVideo();
+    }
+
+    function toggleLyrics() {
+        const o = document.getElementById('lyrics-overlay');
+        const isOpening = o.style.display !== 'flex';
+        o.style.display = isOpening ? 'flex' : 'none';
+        document.body.style.overflow = isOpening ? 'hidden' : 'auto';
+    }
+
+    async function searchAlbums(query) {
+        document.getElementById('brand-area').style.display = 'block';
+        const area = document.getElementById('displayArea');
+        area.innerHTML = "<p style='padding:20px; opacity:0.5;'>Yükleniyor...</p>";
+        
+        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=20&country=tr`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            renderAlbums(data.results);
+        } catch (e) { console.error("Arama Hatası"); }
+    }
+
+    function renderAlbums(albums) {
+        const area = document.getElementById('displayArea');
+        area.className = "album-grid";
+        document.getElementById('viewTitle').innerText = "Albümler";
+        area.innerHTML = albums.map(album => `
+            <div class="album-card" onclick="loadAlbumTracks(${album.collectionId}, '${album.collectionName.replace(/'/g,"")}', '${album.artworkUrl100.replace('100x100bb', '600x600bb')}')">
+                <img src="${album.artworkUrl100.replace('100x100bb', '400x400bb')}">
+                <h4>${album.collectionName}</h4>
+                <p>${album.artistName}</p>
+            </div>
+        `).join('');
+    }
+
+    async function loadAlbumTracks(albumId, albumName, albumImg) {
+        window.scrollTo(0,0);
+        document.getElementById('brand-area').style.display = 'none';
+        document.getElementById('viewTitle').innerText = albumName;
+        const area = document.getElementById('displayArea');
+        area.className = "song-list";
+
+        const url = `https://itunes.apple.com/lookup?id=${albumId}&entity=song`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const tracks = data.results.filter(item => item.wrapperType === 'track');
+            
+            area.innerHTML = `<button class="back-btn" onclick="searchAlbums(document.getElementById('searchInput').value || 'Popüler')">← Geri Dön</button>`;
+            area.innerHTML += tracks.map(track => `
+                <div class="song-row" onclick="playSong('${track.artistName} ${track.trackName}', '${track.trackName.replace(/'/g,"")}', '${track.artistName.replace(/'/g,"")}', '${albumImg}')">
+                    <img src="${albumImg}">
+                    <div class="info">
+                        <h4>${track.trackName}</h4>
+                        <p>${track.artistName}</p>
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) { console.error("Şarkılar Yüklenemedi"); }
+    }
+
+    async function playSong(query, title, artist, img) {
+        document.getElementById('current-title').innerText = "Aranıyor...";
+        const yUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=${YT_API_KEY}&type=video&maxResults=1`;
+        try {
+            const res = await fetch(yUrl);
+            const data = await res.json();
+            if(data.items && data.items[0]) {
+                const videoId = data.items[0].id.videoId;
+                document.getElementById('current-img').src = img;
+                document.getElementById('current-title').innerText = title;
+                document.getElementById('current-artist').innerText = artist;
+                player.loadVideoById(videoId);
+                extractColor(img);
+                fetchLyrics(artist, title);
+            }
+        } catch(e) { console.error("YouTube Hatası"); }
+    }
+
+    function extractColor(imgUrl) {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = imgUrl;
+        img.onload = () => {
+            const canvas = document.getElementById('colorCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 10; canvas.height = 10;
+            ctx.drawImage(img, 0, 0, 10, 10);
+            const data = ctx.getImageData(0, 0, 10, 10).data;
+            let r=0, g=0, b=0;
+            for(let i=0; i<data.length; i+=4) { r += data[i]; g += data[i+1]; b += data[i+2]; }
+            const count = data.length / 4;
+            const fR = Math.floor((r/count) * 0.35);
+            const fG = Math.floor((g/count) * 0.35);
+            const fB = Math.floor((b/count) * 0.35);
+            document.body.style.background = `rgb(${fR}, ${fG}, ${fB})`;
+        };
+    }
+
+    async function fetchLyrics(artist, title) {
+        const c = document.getElementById('lyrics-content');
+        c.innerHTML = "Sözler aranıyor...";
+        try {
+            const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+            const data = await res.json();
+            c.innerHTML = data.lyrics ? data.lyrics.replace(/\n/g, '<br><br>') : "Söz bulunamadı.";
+        } catch { c.innerHTML = "Sözler yüklenemedi."; }
+    }
+
+    function startLyricsScroll() {
+        clearInterval(scrollInterval);
+        const o = document.getElementById('lyrics-overlay');
+        scrollInterval = setInterval(() => {
+            if(player && player.getPlayerState() === 1) o.scrollTop += 1;
+        }, 120);
+    }
+
+    function updateGreeting() {
+        const hour = new Date().getHours();
+        let g = "İYİ GÜNLER";
+        if(hour < 12) g = "GÜNAYDIN";
+        else if(hour < 18) g = "TÜNAYDIN";
+        else if(hour < 23) g = "İYİ AKŞAMLAR";
+        else g = "İYİ GECELER";
+        document.getElementById('greeting').innerText = g;
+    }
+
+    window.onload = () => {
+        updateGreeting();
+        searchAlbums('2026 Türkçe Pop');
+    };
+</script>
+</body>
+</html>
