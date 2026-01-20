@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ödev ve Davranış Takip</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3498db">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3407/3407024.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root { --primary: #3498db; --secondary: #7f8c8d; --danger: #e74c3c; --success: #2ecc71; --bg: #f0f2f5; }
+body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; -webkit-tap-highlight-color: transparent; }
+.section { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+input, select, button { width: 100%; padding: 12px; margin: 5px 0; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
+button { background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+button:active { transform: scale(0.98); }
+.danger { background: var(--danger) !important; }
+.success { background: var(--success) !important; }
+.secondary { background: var(--secondary) !important; }
+.btn-row { display: flex; gap: 10px; }
+.hidden { display: none; }
+h2 { color: #2c3e50; border-bottom: 2px solid var(--primary); padding-bottom: 5px; margin-top: 0; }
+.ogrenci-kart { background: #f9f9f9; padding: 10px; border-radius: 10px; margin-top: 5px; border-left: 4px solid var(--primary); }
+</style>
+</head>
+<body>
+
+<div id="karsilamaEkrani" class="section">
+    <h1>🏫 Kurulum</h1>
+    <input id="okulAd" placeholder="Okul Adı">
+    <input id="ogretmenAd" placeholder="Öğretmen Adı">
+    <button id="karsilamaKaydet">Kurulumu Tamamla</button>
+</div>
+
+<div id="mainApp" class="hidden">
+    <h1 id="okulBaslik" style="text-align:center; font-size:1.2rem;"></h1>
+    
+    <div class="section">
+        <h2>👨‍🎓 Öğrenci Kayıt</h2>
+        <input id="ad" placeholder="Ad Soyad">
+        <input id="no" placeholder="Numara">
+        <input id="sinif" placeholder="Sınıf (Örn: 9/A)">
+        <div class="btn-row">
+            <button id="kaydetBtn">💾 Kaydet</button>
+            <button id="iptalBtn" class="secondary">İptal</button>
+        </div>
+        <input id="arama" placeholder="🔍 Öğrenci ara..." style="margin-top:10px">
+        <div id="aramaSonuc"></div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Ödev & Davranış Kontrol</h2>
+        <label>Tarih Seçin:</label>
+        <input type="date" id="islemTarih">
+        <select id="islemSinif"><option value="">Sınıf Seçin</option></select>
+        <select id="islemOgrenciSec" size="5"></select>
+        
+        <div id="kontrolAlanlari" class="hidden">
+            <p><b>Ödev Durumu:</b></p>
+            <div class="btn-row">
+                <button onclick="veriKaydet('odev','yapti')" class="success">✅ Yaptı</button>
+                <button onclick="veriKaydet('odev','yapmadi')" class="danger">❌ Yapmadı</button>
+                <button onclick="veriKaydet('odev','gelmedi')" class="secondary">🚫 Gelmedi</button>
+            </div>
+            <p><b>Sınıf İçi Davranış:</b></p>
+            <div class="btn-row">
+                <button onclick="veriKaydet('davranis','+')" class="success" style="font-size:24px">+</button>
+                <button onclick="veriKaydet('davranis','-')" class="danger" style="font-size:24px">-</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 PDF Raporları</h2>
+        <select id="raporSinif"><option value="">Sınıf Seçin</option></select>
+        <button onclick="gunlukPdf()">📄 Günlük Rapor (Bugün)</button>
+        <hr>
+        <input type="month" id="raporAy">
+        <button onclick="aylikPdf()" class="secondary">📅 Aylık Rapor Al</button>
+    </div>
+
+    <div class="section">
+        <button onclick="jsonYedekAl()" style="font-size:12px">⬇️ Veri Yedeği Al</button>
+    </div>
+</div>
+
+<script>
+let okulAd = localStorage.getItem('okulAd') || '';
+let ogretmenAd = localStorage.getItem('ogretmenAd') || '';
+let ogrenciler = JSON.parse(localStorage.getItem('ogrenciler')) || [];
+let odevler = JSON.parse(localStorage.getItem('odevler')) || [];
+let davranislar = JSON.parse(localStorage.getItem('davranislar')) || [];
+let seciliNo = null;
+
+const bugunISO = new Date().toISOString().split('T')[0];
+document.getElementById('islemTarih').value = bugunISO;
+document.getElementById('islemTarih').max = bugunISO;
+
+function karsilamaGoster(){
+    if(okulAd){
+        document.getElementById('okulBaslik').textContent = okulAd + " - " + ogretmenAd;
+        document.getElementById('karsilamaEkrani').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        siniflariDoldur();
+    }
+}
+karsilamaGoster();
+
+document.getElementById('karsilamaKaydet').onclick = () => {
+    okulAd = document.getElementById('okulAd').value;
+    ogretmenAd = document.getElementById('ogretmenAd').value;
+    localStorage.setItem('okulAd', okulAd);
+    localStorage.setItem('ogretmenAd', ogretmenAd);
+    karsilamaGoster();
+};
+
+function siniflariDoldur(){
+    const siniflar = [...new Set(ogrenciler.map(o => o.sinif.toUpperCase()))];
+    const selects = ['islemSinif', 'raporSinif'];
+    selects.forEach(sId => {
+        const s = document.getElementById(sId);
+        s.innerHTML = '<option value="">Sınıf Seçin</option>';
+        siniflar.forEach(sinif => {
+            s.innerHTML += `<option value="${sinif}">${sinif}</option>`;
+        });
+    });
+}
+
+document.getElementById('islemSinif').onchange = function() {
+    const sOgr = document.getElementById('islemOgrenciSec');
+    sOgr.innerHTML = '';
+    ogrenciler.filter(o => o.sinif.toUpperCase() === this.value).forEach(o => {
+        sOgr.innerHTML += `<option value="${o.no}">${o.ad} (${o.no})</option>`;
+    });
+};
+
+document.getElementById('islemOgrenciSec').onchange = () => {
+    document.getElementById('kontrolAlanlari').classList.remove('hidden');
+};
+
+function veriKaydet(tip, deger) {
+    const no = document.getElementById('islemOgrenciSec').value;
+    const tarih = document.getElementById('islemTarih').value;
+    if(!no) return;
+
+    if(tip === 'odev') {
+        const idx = odevler.findIndex(o => o.no === no && o.tarih === tarih);
+        if(idx > -1) odevler[idx].durum = deger; else odevler.push({no, tarih, durum: deger});
+        localStorage.setItem('odevler', JSON.stringify(odevler));
+    } else {
+        const idx = davranislar.findIndex(d => d.no === no && d.tarih === tarih);
+        if(idx > -1) davranislar[idx].puan = deger; else davranislar.push({no, tarih, puan: deger});
+        localStorage.setItem('davranislar', JSON.stringify(davranislar));
+    }
+    alert("Kaydedildi!");
+}
+
+function formatTarih(t) { const [y,a,g] = t.split('-'); return `${g}/${a}/${y.slice(2)}`; }
+
+function gunlukPdf() {
+    const sinif = document.getElementById('raporSinif').value;
+    if(!sinif) return alert("Sınıf seçin");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const liste = ogrenciler.filter(o => o.sinif === sinif);
+    
+    const rows = liste.map(o => {
+        const od = odevler.find(x => x.no === o.no && x.tarih === bugunISO);
+        const dv = davranislar.find(x => x.no === o.no && x.tarih === bugunISO);
+        return [o.no, o.ad, od?od.durum:'-', dv?dv.puan:'-'];
+    });
+
+    doc.text(`${sinif} - Günlük Rapor - ${formatTarih(bugunISO)}`, 14, 15);
+    doc.autoTable({ head: [['No', 'Ad Soyad', 'Ödev', 'Davranış']], body: rows, startY: 20 });
+    doc.save(`Gunluk_${sinif}.pdf`);
+}
+
+function aylikPdf() {
+    const ay = document.getElementById('raporAy').value;
+    const sinif = document.getElementById('raporSinif').value;
+    if(!ay || !sinif) return alert("Ay ve Sınıf seçin");
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Yatay yapalım çünkü tablo çok genişleyecek
+    const liste = ogrenciler.filter(o => o.sinif === sinif);
+    const nolar = liste.map(o => o.no);
+    const tarihler = [...new Set([...odevler, ...davranislar]
+        .filter(x => nolar.includes(x.no) && x.tarih.startsWith(ay))
+        .map(x => x.tarih))].sort();
+
+    // Başlıklar
+    const head1 = ['No', 'Ad Soyad'];
+    const head2 = ['', ''];
+    tarihler.forEach(t => {
+        head1.push(formatTarih(t), '');
+        head2.push('Ödev', 'Dav.');
+    });
+
+    const rows = liste.map(o => {
+        const row = [o.no, o.ad];
+        tarihler.forEach(t => {
+            const od = odevler.find(x => x.no === o.no && x.tarih === t);
+            const dv = davranislar.find(x => x.no === o.no && x.tarih === t);
+            row.push(od?od.durum:'-', dv?dv.puan:'-');
+        });
+        return row;
+    });
+
+    doc.text(`${sinif} - Aylık Rapor (${ay})`, 14, 15);
+    doc.autoTable({
+        head: [head1, head2],
+        body: rows,
+        startY: 20,
+        styles: { fontSize: 6, cellPadding: 1 },
+        theme: 'grid'
+    });
+    doc.save(`Aylik_${sinif}.pdf`);
+}
+
+// Öğrenci Kayıt ve Arama Mantığı
+document.getElementById('kaydetBtn').onclick = () => {
+    const ad = document.getElementById('ad').value;
+    const no = document.getElementById('no').value;
+    const sinif = document.getElementById('sinif').value.toUpperCase();
+    if(!ad || !no || !sinif) return;
+    ogrenciler.push({ad, no, sinif});
+    localStorage.setItem('ogrenciler', JSON.stringify(ogrenciler));
+    siniflariDoldur();
+    alert("Öğrenci Kaydedildi");
+};
+
+document.getElementById('arama').oninput = function() {
+    const q = this.value.toLowerCase();
+    const res = document.getElementById('aramaSonuc');
+    res.innerHTML = '';
+    if(q.length < 2) return;
+    ogrenciler.filter(o => o.ad.toLowerCase().includes(q) || o.no.includes(q)).forEach(o => {
+        res.innerHTML += `<div class="ogrenci-kart">${o.ad} (${o.no}) - ${o.sinif}</div>`;
+    });
+};
+
+function jsonYedekAl(){
+    const data = {ogrenciler, odevler, davranislar, okulAd, ogretmenAd};
+    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'yedek.json'; a.click();
+}
+</script>
+</body>
+</html>
