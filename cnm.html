@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SinemaTV Pro v32.9 - Logic Fix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --n-red: #E50914; --n-black: #080808; }
+        body { background-color: var(--n-black); color: white; font-family: sans-serif; margin: 0; padding: 5px; overflow-x: hidden; }
+        .nav-item { transition: all 0.2s; cursor: pointer; border-radius: 8px; }
+        .nav-item:active { transform: scale(0.95); opacity: 0.8; }
+        
+        /* AFİŞLERİ KÜÇÜLTTÜK: Mobilde Yan Yana 4 Adet */
+        #results, #personCredits { 
+            display: grid; 
+            grid-template-cols: repeat(4, 1fr); 
+            gap: 6px; 
+        }
+        @media (min-width: 768px) { #results, #personCredits { grid-template-cols: repeat(8, 1fr); } }
+
+        .full-modal { display: none !important; position: fixed; inset: 0; background: var(--n-black); padding: 15px; overflow-y: auto; z-index: 1000; }
+        .show-modal { display: block !important; }
+        
+        .h-scroll { display: flex; overflow-x: auto; gap: 8px; width: 100%; padding: 10px 0; scrollbar-width: none; }
+        .cast-card { flex: 0 0 60px; text-align: center; cursor: pointer; }
+        .cast-card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid #333; }
+        .gallery-img { flex: 0 0 100px; height: 140px; border-radius: 10px; object-fit: cover; }
+        #videoLayer { z-index: 4000; position: fixed; inset: 0; background: black; display: none; flex-direction: column; }
+    </style>
+</head>
+<body onload="initApp()">
+
+    <div id="mainUI">
+        <header class="flex flex-col items-center mb-4 text-center">
+            <h1 class="text-xl font-black italic text-red-600 my-2">Sinema<span class="text-white">TV PRO</span></h1>
+            <div class="flex w-full gap-2 px-1">
+                <input type="text" id="searchInput" placeholder="Film, oyuncu..." class="bg-[#1a1a1a] p-2 flex-1 rounded-lg outline-none text-sm text-white border-none">
+                <button onclick="resetAndSearch()" class="bg-[#E50914] px-4 rounded-lg text-white"><i class="fas fa-search text-sm"></i></button>
+            </div>
+        </header>
+        <div id="results"></div>
+        <button id="loadMoreMain" onclick="loadMoreContent()" class="w-full mt-6 mb-10 py-3 bg-white/5 rounded-lg text-[10px] font-bold uppercase text-gray-500">Daha Fazla</button>
+    </div>
+
+    <div id="personModal" class="full-modal">
+        <button onclick="closePerson()" class="mb-4 bg-white/10 px-4 py-2 rounded-full font-bold text-[10px] uppercase text-white">← GERİ</button>
+        <div class="flex items-center gap-4 mb-6">
+            <img id="personImg" src="" class="w-24 h-24 rounded-full object-cover border-2 border-red-600">
+            <div>
+                <h2 id="personName" class="text-xl font-black text-red-600 leading-tight"></h2>
+                <p id="personBio" class="text-gray-400 text-[10px] leading-snug mt-1 max-h-20 overflow-y-auto"></p>
+            </div>
+        </div>
+        <div class="text-[9px] font-bold text-gray-500 mb-2 tracking-widest">GALERİ</div>
+        <div id="personGallery" class="h-scroll mb-6"></div>
+        <div class="text-[9px] font-bold text-gray-500 mb-2 tracking-widest uppercase">Yapımları</div>
+        <div id="personCredits"></div>
+        <button id="loadMoreCredits" onclick="expandCredits()" class="w-full mt-4 py-3 bg-white/5 rounded-lg text-[9px] font-bold uppercase">Tümünü Göster</button>
+    </div>
+
+    <div id="detailPage" class="full-modal">
+        <button onclick="closeDetail()" class="mb-4 bg-white/10 px-4 py-2 rounded-full font-bold text-[10px] uppercase text-white">← GERİ</button>
+        <div class="flex flex-col items-center">
+            <img id="detailPoster" src="" class="max-h-[220px] rounded-xl shadow-2xl mb-4">
+            <h2 id="detailTitle" class="text-lg font-black text-center px-4"></h2>
+            <div class="text-[9px] font-bold text-gray-500 mt-4 uppercase">Oyuncu Kadrosu</div>
+            <div id="castList" class="h-scroll px-2"></div>
+            <button onclick="startAutoPlay()" class="bg-[#E50914] w-full max-w-xs py-4 mt-4 rounded-xl font-black text-sm text-white">▶ ŞİMDİ İZLE</button>
+        </div>
+    </div>
+
+    <div id="videoLayer">
+        <div class="p-2 bg-black flex justify-between items-center border-b border-white/10">
+            <button onclick="closePlayer()" class="bg-white/10 px-4 py-1.5 rounded-full font-bold text-[9px] text-white uppercase">KAPAT</button>
+            <div class="text-[8px] text-gray-500 font-bold">VidSrc.Me | Auto TR</div>
+        </div>
+        <iframe id="playerFrame" src="" class="flex-1 w-full border-none" allowfullscreen></iframe>
+    </div>
+
+    <script>
+        const TMDB_KEY = "847629da5649502fa6655f73b15a5c8e";
+        let mainPage = 1, currentCredits = [], currentItem = {};
+
+        function initApp() { loadContent(); }
+
+        async function loadContent(page = 1) {
+            const q = document.getElementById('searchInput').value;
+            let url = q 
+                ? `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=tr-TR&page=${page}`
+                : `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_KEY}&language=tr-TR&page=${page}`;
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            displayItems(data.results, 'results', page > 1);
+            document.getElementById('loadMoreMain').style.display = data.page < data.total_pages ? 'block' : 'none';
+        }
+
+        function resetAndSearch() {
+            mainPage = 1; document.getElementById('results').innerHTML = ""; loadContent(1);
+        }
+
+        function loadMoreContent() { mainPage++; loadContent(mainPage); }
+
+        function displayItems(items, targetId, append = false) {
+            const container = document.getElementById(targetId);
+            if(!append) container.innerHTML = "";
+            items.forEach(item => {
+                if(item.media_type === 'person') renderPersonCard(item, container);
+                else if(item.poster_path) {
+                    const btn = document.createElement('div');
+                    btn.className = "nav-item flex flex-col";
+                    btn.innerHTML = `<img src="https://image.tmdb.org/t/p/w300${item.poster_path}" class="rounded-lg aspect-[2/3] object-cover"><div class="text-[7px] font-bold truncate mt-1 uppercase text-center text-gray-400">${item.title || item.name}</div>`;
+                    btn.onclick = () => { history.pushState({view:'detail'}, ""); openDetails(item.id, item.media_type || (item.first_air_date ? 'tv' : 'movie')); };
+                    container.appendChild(btn);
+                }
+            });
+        }
+
+        function renderPersonCard(p, container) {
+            const btn = document.createElement('div');
+            btn.className = "nav-item flex flex-col items-center";
+            btn.innerHTML = `<img src="https://image.tmdb.org/t/p/w185${p.profile_path || ''}" class="rounded-full w-14 h-14 object-cover border border-red-600 mb-1" onerror="this.src='https://via.placeholder.com/100'"><div class="text-[6px] font-black uppercase text-center text-red-600 truncate w-full px-1">${p.name}</div>`;
+            btn.onclick = () => { history.pushState({view:'person'}, ""); openPersonDetails(p.id); };
+            container.appendChild(btn);
+        }
+
+        async function openPersonDetails(id) {
+            closeDetail(); // Oyuncuya tıklayınca film detayını kapat
+            const res = await fetch(`https://api.themoviedb.org/3/person/${id}?api_key=${TMDB_KEY}&language=tr-TR&append_to_response=combined_credits,images`);
+            const data = await res.json();
+            document.getElementById('personName').innerText = data.name;
+            document.getElementById('personBio').innerText = data.biography || "Bilgi yok.";
+            document.getElementById('personImg').src = `https://image.tmdb.org/t/p/w500${data.profile_path}`;
+            
+            const gDiv = document.getElementById('personGallery'); gDiv.innerHTML = "";
+            data.images?.profiles.slice(0,10).forEach(img => {
+                const i = document.createElement('img'); i.className = "gallery-img"; i.src = `https://image.tmdb.org/t/p/w185${img.file_path}`;
+                gDiv.appendChild(i);
+            });
+
+            currentCredits = data.combined_credits.cast.sort((a,b) => b.vote_count - a.vote_count);
+            displayItems(currentCredits.slice(0, 12), 'personCredits', false);
+            document.getElementById('personModal').classList.add('show-modal');
+        }
+
+        async function openDetails(id, type) {
+            const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}&language=tr-TR&append_to_response=credits`);
+            const data = await res.json();
+            currentItem = { id, type, title: data.title || data.name };
+            document.getElementById('detailTitle').innerText = currentItem.title;
+            document.getElementById('detailPoster').src = `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+            
+            const castDiv = document.getElementById('castList'); castDiv.innerHTML = "";
+            data.credits.cast.slice(0, 10).forEach(p => {
+                const card = document.createElement('div'); card.className = "cast-card";
+                card.innerHTML = `<img src="https://image.tmdb.org/t/p/w185${p.profile_path || ''}" onerror="this.src='https://via.placeholder.com/100'"><div class="text-[7px] mt-1 truncate">${p.name}</div>`;
+                card.onclick = () => { history.pushState({view:'person'}, ""); openPersonDetails(p.id); };
+                castDiv.appendChild(card);
+            });
+            document.getElementById('detailPage').classList.add('show-modal');
+        }
+
+        function startAutoPlay() {
+            const url = currentItem.type === 'tv' ? `https://vidsrc.me/embed/tv?tmdb=${currentItem.id}&sea=1&epi=1&ds_lang=tr` : `https://vidsrc.me/embed/movie?tmdb=${currentItem.id}&ds_lang=tr`;
+            document.getElementById('playerFrame').src = url;
+            document.getElementById('videoLayer').style.display = 'flex';
+        }
+
+        function closePerson() { document.getElementById('personModal').classList.remove('show-modal'); }
+        function closeDetail() { document.getElementById('detailPage').classList.remove('show-modal'); }
+        function closePlayer() { document.getElementById('playerFrame').src = ""; document.getElementById('videoLayer').style.display = 'none'; }
+        
+        window.onpopstate = (e) => {
+            closePlayer(); closePerson(); closeDetail();
+        };
+    </script>
+</body>
+</html>
