@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SinemaTV PRO – FULL</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root{--red:#E50914;--black:#080808}
+body{background:var(--black);color:#fff;margin:0;padding:10px;font-family:sans-serif;overflow:hidden}
+.nav-item{transition:.2s;border:2px solid transparent;border-radius:12px}
+.nav-item:focus{border-color:#fff!important;background:var(--red)!important;transform:scale(1.05)}
+.full-modal{display:none!important;position:fixed;inset:0;background:rgba(0,0,0,.97);padding:20px;overflow-y:auto}
+.show-modal{display:flex!important;flex-direction:column;align-items:center}
+#results{height:calc(100vh - 180px);overflow-y:auto}
+#videoLayer{display:none;position:fixed;inset:0;background:black;z-index:4000}
+</style>
+</head>
+
+<body onload="loadShowcase()">
+
+<header class="mb-4 text-center">
+<h1 class="text-3xl font-black italic text-red-600">Sinema<span class="text-white">TV PRO</span></h1>
+<div class="flex gap-2 mt-3">
+<input id="searchInput" placeholder="Film / Dizi / Oyuncu"
+class="nav-item flex-1 bg-[#1a1a1a] p-3 text-sm text-white">
+<button onclick="searchContent()" class="nav-item bg-red-600 px-5 py-3 text-xs font-bold">ARA</button>
+</div>
+</header>
+
+<div id="results" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+
+<!-- DETAIL -->
+<div id="detailPage" class="full-modal">
+<button onclick="closeDetail()" class="nav-item mb-4 px-6 py-2 bg-white/10">← GERİ</button>
+<img id="detailPoster" class="max-h-[260px] rounded-xl mb-3">
+<h2 id="detailTitle" class="text-2xl font-black mb-3"></h2>
+<div id="castList" class="flex flex-wrap gap-2 justify-center mb-5"></div>
+<button onclick="openSources()" class="nav-item bg-red-600 px-6 py-4 text-sm font-black rounded-xl">
+▶ İZLEME SEÇENEKLERİ
+</button>
+</div>
+
+<!-- ACTOR -->
+<div id="actorPage" class="full-modal">
+<button onclick="closeActor()" class="nav-item mb-4 px-6 py-2 bg-white/10">← GERİ</button>
+<img id="actorPhoto" class="w-32 h-32 rounded-full object-cover mb-3 border border-white/10">
+<h2 id="actorName" class="text-2xl font-black mb-2"></h2>
+<p id="actorBio" class="text-[11px] text-gray-400 max-w-3xl mb-5 px-4"></p>
+
+<div class="flex gap-2 mb-4">
+<button onclick="setActorFilter('all',this)" class="actor-filter nav-item px-4 py-2 bg-red-600 text-xs">TÜMÜ</button>
+<button onclick="setActorFilter('movie',this)" class="actor-filter nav-item px-4 py-2 bg-[#1a1a1a] text-xs">FİLM</button>
+<button onclick="setActorFilter('tv',this)" class="actor-filter nav-item px-4 py-2 bg-[#1a1a1a] text-xs">DİZİ</button>
+</div>
+
+<div id="actorFilmography" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+</div>
+
+<!-- SELECTION -->
+<div id="selectionModal" class="full-modal">
+<h2 id="modalTitle" class="text-xl font-black mb-4 text-center"></h2>
+<div id="modalList"></div>
+<button onclick="handleBack()" class="nav-item mt-4 px-6 py-3 bg-gray-800">GERİ</button>
+</div>
+
+<!-- PIN -->
+<div id="pinModal" class="full-modal">
+<input id="pinInput" type="password" maxlength="4"
+class="bg-black border-2 border-red-600 text-center text-3xl w-40 p-3 rounded-xl mb-4">
+<button onclick="checkPin()" class="nav-item bg-red-600 px-6 py-3">ONAYLA</button>
+</div>
+
+<!-- VIDEO -->
+<div id="videoLayer">
+<button onclick="closePlayer()" class="nav-item absolute top-4 left-4 bg-white/10 px-6 py-2">← KAPAT</button>
+<iframe id="playerFrame" class="w-full h-full border-none" allowfullscreen></iframe>
+</div>
+
+<script>
+const TMDB_KEY="847629da5649502fa6655f73b15a5c8e";
+const SAFE_PIN="1234";
+
+let currentId,currentType,currentS=null,currentE=null,imdbId;
+let menuStack=[];
+let actorCredits=[],actorFilter="all";
+
+/* TREND */
+async function loadShowcase(){
+const r=await fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_KEY}&language=tr-TR`);
+displayItems((await r.json()).results);
+}
+
+/* SEARCH */
+async function searchContent(){
+const q=searchInput.value;
+if(!q) return loadShowcase();
+const r=await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=tr-TR`);
+displayItems((await r.json()).results);
+}
+
+/* GRID */
+function displayItems(items){
+results.innerHTML="";
+items.forEach(i=>{
+if(!i.poster_path && !i.profile_path) return;
+const b=document.createElement("button");
+b.className="nav-item flex flex-col";
+b.innerHTML=`
+<img src="https://image.tmdb.org/t/p/w300${i.poster_path||i.profile_path}" class="rounded-lg aspect-[2/3]">
+<div class="text-[10px] font-bold truncate mt-1">${i.title||i.name}</div>`;
+if(i.media_type==="person") b.onclick=()=>openActor(i.id);
+else b.onclick=()=>openDetails(i.id,i.media_type||"movie");
+results.appendChild(b);
+});
+}
+
+/* DETAIL */
+async function openDetails(id,type){
+currentId=id;
+currentType=type==="tv"?"tv":"movie";
+currentS=null; currentE=null;
+
+const r=await fetch(`https://api.themoviedb.org/3/${currentType}/${id}?api_key=${TMDB_KEY}&language=tr-TR&append_to_response=credits,external_ids`);
+const d=await r.json();
+
+imdbId=d.external_ids?.imdb_id;
+detailPoster.src=`https://image.tmdb.org/t/p/w500${d.poster_path}`;
+detailTitle.innerText=d.title||d.name;
+
+castList.innerHTML="";
+d.credits.cast.slice(0,8).forEach(a=>{
+const b=document.createElement("button");
+b.className="nav-item flex flex-col items-center bg-[#1a1a1a] p-2 w-[72px]";
+b.innerHTML=`
+<img src="${a.profile_path?`https://image.tmdb.org/t/p/w185${a.profile_path}`:`https://ui-avatars.com/api/?name=${a.name}`}"
+class="w-10 h-10 rounded-full mb-1">
+<div class="text-[10px] truncate">${a.name}</div>`;
+b.onclick=()=>openActor(a.id);
+castList.appendChild(b);
+});
+detailPage.classList.add("show-modal");
+}
+
+/* ACTOR */
+async function openActor(id){
+const r=await fetch(`https://api.themoviedb.org/3/person/${id}?api_key=${TMDB_KEY}&language=tr-TR`);
+const d=await r.json();
+
+actorName.innerText=d.name;
+actorPhoto.src=d.profile_path?`https://image.tmdb.org/t/p/w500${d.profile_path}`:`https://ui-avatars.com/api/?name=${d.name}`;
+actorBio.innerText=d.biography?d.biography.substring(0,400)+"...":"Biyografi bulunamadı.";
+
+const c=await fetch(`https://api.themoviedb.org/3/person/${id}/combined_credits?api_key=${TMDB_KEY}&language=tr-TR`);
+actorCredits=(await c.json()).cast
+.filter(i=>i.poster_path)
+.sort((a,b)=>(b.vote_count||0)-(a.vote_count||0));
+
+actorFilter="all";
+renderActor();
+actorPage.classList.add("show-modal");
+}
+
+/* ACTOR GRID – FIXED */
+function renderActor(){
+actorFilmography.innerHTML="";
+actorCredits
+.filter(i=>actorFilter==="all"||i.media_type===actorFilter)
+.forEach(i=>{
+const type=i.media_type==="tv"?"tv":"movie";
+const b=document.createElement("button");
+b.className="nav-item flex flex-col";
+b.innerHTML=`
+<img src="https://image.tmdb.org/t/p/w300${i.poster_path}" class="rounded-lg aspect-[2/3]">
+<div class="text-[10px] truncate mt-1">${i.title||i.name}</div>`;
+b.onclick=()=>{
+currentS=null; currentE=null;
+openDetails(i.id,type);
+};
+actorFilmography.appendChild(b);
+});
+}
+
+/* FILTER */
+function setActorFilter(t,el){
+actorFilter=t;
+document.querySelectorAll(".actor-filter").forEach(b=>b.classList.replace("bg-red-600","bg-[#1a1a1a]"));
+el.classList.replace("bg-[#1a1a1a]","bg-red-600");
+renderActor();
+}
+
+/* SOURCES */
+function openSources(){
+showSelection("KAYNAK SEÇ",[
+{n:"VIDSRC",f:()=>play("vidsrc")},
+{n:"VIDLINK",f:()=>play("vidlink")},
+{n:"SUPEREMBED",f:()=>play("super")},
+{n:"HARİCİ (PIN)",f:openPin}
+]);
+}
+
+function play(src){
+let url="";
+const isT=currentType==="tv";
+if(src==="vidsrc") url=isT?`https://vidsrc.xyz/embed/tv?imdb=${imdbId}&sea=${currentS}&epi=${currentE}`:`https://vidsrc.xyz/embed/movie?imdb=${imdbId}`;
+if(src==="vidlink") url=isT?`https://vidlink.pro/tv/${currentId}/${currentS}/${currentE}`:`https://vidlink.pro/movie/${currentId}`;
+if(src==="super") url=isT?`https://multiembed.mov/?video_id=${currentId}&s=${currentS}&e=${currentE}`:`https://multiembed.mov/?video_id=${currentId}`;
+playerFrame.src=url;
+videoLayer.style.display="block";
+}
+
+/* PIN */
+function openPin(){pinModal.classList.add("show-modal")}
+function checkPin(){
+if(pinInput.value===SAFE_PIN){pinModal.classList.remove("show-modal")}
+else alert("Hatalı PIN");
+}
+
+/* MODAL */
+function showSelection(title,items){
+menuStack.push({title,items});
+modalTitle.innerText=title;
+modalList.innerHTML="";
+items.forEach(i=>{
+const b=document.createElement("button");
+b.className="nav-item bg-[#1a1a1a] p-4 w-full mb-2";
+b.innerText=i.n;
+b.onclick=i.f;
+modalList.appendChild(b);
+});
+selectionModal.classList.add("show-modal");
+}
+function handleBack(){
+menuStack.pop();
+if(menuStack.length===0) selectionModal.classList.remove("show-modal");
+}
+
+/* CLOSE */
+function closeDetail(){detailPage.classList.remove("show-modal")}
+function closeActor(){actorPage.classList.remove("show-modal")}
+function closePlayer(){playerFrame.src="";videoLayer.style.display="none"}
+</script>
+</body>
+</html>
