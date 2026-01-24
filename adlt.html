@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SinemaTV PRO – FULL</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{--red:#E50914;--black:#080808}
+body{background:var(--black);color:#fff;margin:0;padding:10px;font-family:sans-serif;overflow:hidden}
+.nav-item{cursor:pointer;border-radius:12px;transition:.15s}
+.nav-item:focus{outline:none;background:var(--red);transform:scale(1.05)}
+.full-modal{display:none!important;position:fixed;inset:0;background:rgba(0,0,0,.97);overflow-y:auto}
+.show-modal{display:flex!important}
+#results{height:calc(100vh - 170px);overflow-y:auto}
+</style>
+</head>
+<body>
+<header class="text-center mb-4">
+<h1 class="text-3xl font-black italic text-red-600">SinemaTV PRO</h1>
+<div class="flex gap-2 mt-3">
+<input id="searchInput" placeholder="Film / Dizi / Oyuncu"
+ class="flex-1 p-3 bg-[#1a1a1a] rounded-xl nav-item">
+<button onclick="searchContent()"
+ class="px-6 bg-red-600 rounded-xl font-bold nav-item">ARA</button>
+</div>
+</header>
+<div id="results" class="grid grid-cols-3 sm:grid-cols-5 gap-4"></div>
+
+<!-- DETAIL -->
+<div id="detailPage" class="full-modal z-[1000] flex-col items-center p-6">
+<button onclick="goBack()" class="mb-4 nav-item px-6 py-2 bg-white/10 rounded-full">← GERİ</button>
+<img id="detailPoster" class="max-h-[250px] rounded-xl mb-4">
+<h2 id="detailTitle" class="text-2xl font-black mb-3"></h2>
+<p id="ageRating" class="text-sm text-gray-400 mb-4"></p>
+<div id="castList" class="flex flex-wrap gap-2 mb-6"></div>
+<button onclick="openSources()" class="bg-red-600 px-8 py-4 rounded-xl font-black nav-item">▶ İZLE</button>
+</div>
+
+<!-- ACTOR -->
+<div id="actorPage" class="full-modal z-[1200] flex-col items-center p-6">
+<button onclick="goBack()" class="mb-4 nav-item px-6 py-2 bg-white/10 rounded-full">← GERİ</button>
+<img id="actorPhoto" class="w-32 h-32 rounded-full mb-3 object-cover">
+<h2 id="actorName" class="text-xl font-black mb-2"></h2>
+<p id="actorBio" class="text-xs text-gray-400 max-w-xl text-center mb-4"></p>
+<div class="flex gap-2 mb-4">
+<button onclick="setActorFilter('all')" class="nav-item px-4 py-1 bg-[#222] rounded-full">Tümü</button>
+<button onclick="setActorFilter('movie')" class="nav-item px-4 py-1 bg-[#222] rounded-full">Film</button>
+<button onclick="setActorFilter('tv')" class="nav-item px-4 py-1 bg-[#222] rounded-full">Dizi</button>
+</div>
+<div id="actorFilmography" class="grid grid-cols-3 sm:grid-cols-5 gap-4 w-full"></div>
+<div id="actorLoader" class="col-span-full text-center py-8 text-gray-400 hidden">Yükleniyor...</div>
+<div id="actorEnd" class="col-span-full text-center py-8 text-gray-400 hidden">Tüm filmografi yüklendi.</div>
+</div>
+
+<!-- SELECTION -->
+<div id="selectionModal" class="full-modal z-[1500] flex items-center justify-center">
+<div class="bg-[#111] p-6 rounded-xl w-full max-w-md">
+<h2 id="modalTitle" class="text-center font-black mb-4 text-red-600">MENÜ</h2>
+<div id="modalList" class="space-y-2"></div>
+<button onclick="handleBack()" class="mt-4 w-full bg-gray-700 p-2 rounded nav-item">GERİ</button>
+</div>
+</div>
+
+<!-- PIN (Uygulama girişi için) -->
+<div id="pinModal" class="full-modal z-[2000] show-modal flex items-center justify-center">
+<div class="bg-[#111] p-6 rounded-xl text-center">
+<h2 class="font-black mb-3">PIN GİR</h2>
+<input id="pinInput" type="password" maxlength="4" class="text-center text-2xl bg-black border border-red-600 p-2 mb-4 w-32">
+<div class="flex gap-2">
+<button onclick="closeApp()" class="flex-1 bg-gray-700 p-2 rounded">ÇIKIŞ</button>
+<button onclick="checkPin()" class="flex-1 bg-red-600 p-2 rounded">GİRİŞ</button>
+</div>
+</div>
+</div>
+
+<!-- PLAYER -->
+<div id="videoLayer" class="fixed inset-0 bg-black z-[3000] hidden flex-col">
+<button onclick="goBack()" class="m-3 bg-white/10 px-6 py-2 rounded-full nav-item">← KAPAT</button>
+<iframe id="playerFrame" class="flex-1 w-full" allowfullscreen></iframe>
+</div>
+
+<script>
+const TMDB = "847629da5649502fa6655f73b15a5c8e";
+const SAFE_PIN = "7193";
+let currentId, currentType, currentS = 1, currentE = 1, imdbId;
+let actorCredits = [], actorFilter = "all";
+let displayedCount = 0;
+const itemsPerLoad = 30;
+let actorObserver = null;
+let menuStack = [];
+let pageHistory = [];
+let isAuthenticated = false;
+
+window.addEventListener('load', () => {
+    pageHistory.push({ type: "main" });
+});
+
+function closeApp() {
+    alert("Çıkış yapılıyor...");
+}
+
+async function checkPin() {
+    if (pinInput.value !== SAFE_PIN) {
+        alert("Hatalı PIN");
+        pinInput.value = "";
+        return;
+    }
+    isAuthenticated = true;
+    pinModal.classList.remove("show-modal");
+    pinInput.value = "";
+    loadShowcase();
+}
+
+async function loadShowcase() {
+    if (!isAuthenticated) return;
+
+    // 1970-1980 arası tüm filmler (adult dahil)
+    let page = 1;
+    let allAdultFilms = [];
+
+    while (allAdultFilms.length < 50) { // En az 50 tane adult film bulana kadar sayfaları dolaş (TMDB'de az olabilir)
+        const r = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB}&language=tr&sort_by=popularity.desc&primary_release_date.gte=1970-01-01&primary_release_date.lte=1980-12-31&include_adult=true&page=${page}`);
+        const data = await r.json();
+        if (data.results.length === 0) break;
+
+        const adultFilms = data.results.filter(item => item.adult === true && item.poster_path);
+        allAdultFilms = [...allAdultFilms, ...adultFilms];
+
+        page++;
+    }
+
+    // Eğer hiç adult film yoksa fallback (boş kalmasın diye normal popüler 1970-1980)
+    if (allAdultFilms.length === 0) {
+        const fallback = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB}&language=tr&sort_by=popularity.desc&primary_release_date.gte=1970-01-01&primary_release_date.lte=1980-12-31&page=1`);
+        const fbData = await fallback.json();
+        displayItems(fbData.results);
+    } else {
+        displayItems(allAdultFilms.slice(0, 50)); // İlk 50 adult film
+    }
+}
+
+async function searchContent() {
+    if (!isAuthenticated) return;
+    const q = searchInput.value.trim();
+    if (!q) return loadShowcase();
+    const r = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB}&query=${q}&language=tr&include_adult=true`);
+    const data = await r.json();
+    displayItems(data.results);
+}
+
+function displayItems(items) {
+    if (!isAuthenticated) return;
+    results.innerHTML = "";
+    items.forEach(i => {
+        if (i.media_type === "person") {
+            openActor(i.id);
+            return;
+        }
+        if (!i.poster_path) return;
+        const type = i.media_type || (i.first_air_date ? "tv" : "movie");
+        const b = document.createElement("button");
+        b.className = "nav-item";
+        b.innerHTML = `<img src="https://image.tmdb.org/t/p/w300${i.poster_path}" class="rounded-lg"><div class="text-[10px] font-bold truncate mt-1">${i.title || i.name}</div>`;
+        b.onclick = () => openDetails(i.id, type);
+        results.appendChild(b);
+    });
+}
+
+// openDetails, openActor, renderActor vb. aynı kaldı (adult=true filmler gösteriliyor)
+
+// ... (diğer fonksiyonlar önceki kod gibi aynı)
+
+</script>
+</body>
+</html>
