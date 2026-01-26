@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV MAC Tarayıcı - Portal Simülasyon</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2196f3;
+        }
+        
+        h1 {
+            color: #4fc3f7;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #b3e5fc;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 900px) {
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .input-section {
+            background: rgba(0, 30, 60, 0.5);
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 5px solid #2196f3;
+        }
+        
+        .input-section h2 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .input-section h2 i {
+            font-size: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #81d4fa;
+        }
+        
+        input[type="text"], input[type="url"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #1a237e;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus, input[type="url"]:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.3);
+        }
+        
+        .file-upload {
+            border: 2px dashed #2196f3;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(33, 150, 243, 0.05);
+        }
+        
+        .file-upload:hover {
+            background: rgba(33, 150, 243, 0.1);
+            border-color: #4fc3f7;
+        }
+        
+        .file-upload i {
+            font-size: 40px;
+            color: #4fc3f7;
+            margin-bottom: 10px;
+        }
+        
+        .file-upload span {
+            color: #bbdefb;
+            font-weight: 600;
+        }
+        
+        .file-upload input[type="file"] {
+            display: none;
+        }
+        
+        .stats-panel {
+            background: rgba(0, 30, 60, 0.5);
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 5px solid #4caf50;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-box.hit {
+            border: 2px solid #4caf50;
+        }
+        
+        .stat-box.bad {
+            border: 2px solid #f44336;
+        }
+        
+        .stat-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+        }
+        
+        .hit .stat-value {
+            color: #4caf50;
+        }
+        
+        .bad .stat-value {
+            color: #f44336;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex: 1;
+        }
+        
+        .scan-btn {
+            background: linear-gradient(to right, #2196f3, #0d47a1);
+            color: white;
+        }
+        
+        .scan-btn:hover {
+            background: linear-gradient(to right, #0d47a1, #1565c0);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(13, 71, 161, 0.4);
+        }
+        
+        .stop-btn {
+            background: linear-gradient(to right, #f44336, #b71c1c);
+            color: white;
+        }
+        
+        .stop-btn:hover {
+            background: linear-gradient(to right, #b71c1c, #c62828);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(183, 28, 28, 0.4);
+        }
+        
+        .export-btn {
+            background: linear-gradient(to right, #4caf50, #2e7d32);
+            color: white;
+        }
+        
+        .export-btn:hover {
+            background: linear-gradient(to right, #2e7d32, #388e3c);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 125, 50, 0.4);
+        }
+        
+        .results-section {
+            margin-top: 30px;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .results-header h2 {
+            color: #4fc3f7;
+            font-size: 24px;
+        }
+        
+        .results-container {
+            background: rgba(0, 30, 60, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
+            align-items: center;
+            border-left: 4px solid;
+            transition: all 0.3s;
+        }
+        
+        .result-item.hit {
+            border-left-color: #4caf50;
+        }
+        
+        .result-item.bad {
+            border-left-color: #f44336;
+        }
+        
+        .mac-address {
+            font-family: monospace;
+            font-size: 18px;
+            letter-spacing: 1px;
+            color: #e3f2fd;
+        }
+        
+        .result-status {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            min-width: 100px;
+        }
+        
+        .status-hit {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+        
+        .status-bad {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+        
+        .progress-container {
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, #2196f3, #4fc3f7);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #bbdefb;
+            font-size: 14px;
+        }
+        
+        .log-section {
+            margin-top: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .log-section h3 {
+            color: #ffc107;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        #logOutput {
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e0e0e0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .log-success {
+            color: #4caf50;
+        }
+        
+        .log-error {
+            color: #f44336;
+        }
+        
+        .log-info {
+            color: #2196f3;
+        }
+        
+        .log-warning {
+            color: #ffc107;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #90a4ae;
+            font-size: 14px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-box {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin-top: 25px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .info-box h3 {
+            color: #ffc107;
+            margin-bottom: 10px;
+        }
+        
+        .info-box ul {
+            padding-left: 20px;
+        }
+        
+        .info-box li {
+            margin-bottom: 8px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-satellite-dish"></i> IPTV MAC Adresi Tarayıcı</h1>
+            <p class="subtitle">Portal simülasyonu ile MAC adresi doğrulama ve analiz</p>
+        </header>
+        
+        <div class="control-panel">
+            <div class="input-section">
+                <h2><i class="fas fa-cog"></i> Tarama Ayarları</h2>
+                
+                <div class="form-group">
+                    <label for="portalUrl"><i class="fas fa-link"></i> Portal Adresi:</label>
+                    <input type="url" id="portalUrl" placeholder="http://iptv-portal.com:8080/c/" value="http://portal.iptvprovider.com:8080/c/">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-file-upload"></i> MAC Adresleri Dosyası:</label>
+                    <div class="file-upload" id="fileUploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p><span>Dosya Seç</span> veya sürükleyip bırakın</p>
+                        <p style="font-size: 12px; margin-top: 5px;">TXT dosyası (her satırda bir MAC adresi)</p>
+                        <input type="file" id="macFile" accept=".txt">
+                    </div>
+                    <div id="fileName" style="margin-top: 10px; color: #bbdefb; font-style: italic;"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="macPrefix"><i class="fas fa-filter"></i> MAC Adresi Ön Eki:</label>
+                    <input type="text" id="macPrefix" placeholder="00:1A:79" value="00:1A:79">
+                </div>
+            </div>
+            
+            <div class="stats-panel">
+                <h2 style="grid-column: span 2;"><i class="fas fa-chart-bar"></i> Tarama İstatistikleri</h2>
+                
+                <div class="stat-box hit">
+                    <div class="stat-title">HIT (Aktif)</div>
+                    <div class="stat-value" id="hitCount">0</div>
+                    <div class="stat-subtitle">Başarılı MAC'ler</div>
+                </div>
+                
+                <div class="stat-box bad">
+                    <div class="stat-title">BAD (Pasif)</div>
+                    <div class="stat-value" id="badCount">0</div>
+                    <div class="stat-subtitle">Başarısız MAC'ler</div>
+                </div>
+                
+                <div style="grid-column: span 2;">
+                    <div class="progress-info">
+                        <span>İlerleme: <span id="progressPercent">0%</span></span>
+                        <span><span id="processedCount">0</span> / <span id="totalCount">0</span> MAC</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="scan-btn" id="scanBtn">
+                <i class="fas fa-play"></i> Taramayı Başlat
+            </button>
+            <button class="stop-btn" id="stopBtn" disabled>
+                <i class="fas fa-stop"></i> Durdur
+            </button>
+            <button class="export-btn" id="exportBtn" disabled>
+                <i class="fas fa-download"></i> HIT'leri İndir
+            </button>
+        </div>
+        
+        <div class="results-section">
+            <div class="results-header">
+                <h2><i class="fas fa-list"></i> Tarama Sonuçları</h2>
+                <div style="color: #bbdefb;">Toplam: <span id="totalResults">0</span> MAC</div>
+            </div>
+            <div class="results-container" id="resultsContainer">
+                <p style="text-align: center; color: #90a4ae; padding: 40px;">
+                    <i class="fas fa-search" style="font-size: 40px; margin-bottom: 15px; display: block;"></i>
+                    Portal adresini girin, MAC dosyasını yükleyin ve taramayı başlatın.
+                </p>
+            </div>
+        </div>
+        
+        <div class="log-section">
+            <h3><i class="fas fa-terminal"></i> İşlem Logları</h3>
+            <div id="logOutput">
+                > Sistem hazır. Portal adresini ve MAC dosyasını yükleyin.<br>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3><i class="fas fa-info-circle"></i> Önemli Bilgiler</h3>
+            <ul>
+                <li>Bu araç <strong>portal simülasyonu</strong> yapar, gerçek ağ taraması yapmaz.</li>
+                <li>MAC adresleri formatı: <code>00:1A:79:XX:XX:XX</code> (iki nokta veya tire ile ayrılmış)</li>
+                <li>TXT dosyasında her satırda bir MAC adresi olmalıdır.</li>
+                <li>"HIT" olarak işaretlenen MAC'ler otomatik olarak txt dosyasına kaydedilir.</li>
+                <li>Gerçek IPTV taraması için sağlayıcınızın yönetim panelini kullanın.</li>
+            </ul>
+        </div>
+        
+        <footer>
+            <p>© 2023 IPTV MAC Tarayıcı - Demo Versiyon | Gerçek ağ taraması tarayıcı güvenlik kısıtlamaları nedeniyle mümkün değildir.</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const portalUrlInput = document.getElementById('portalUrl');
+        const macFileInput = document.getElementById('macFile');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileNameDisplay = document.getElementById('fileName');
+        const macPrefixInput = document.getElementById('macPrefix');
+        const scanBtn = document.getElementById('scanBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const hitCountElement = document.getElementById('hitCount');
+        const badCountElement = document.getElementById('badCount');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const processedCount = document.getElementById('processedCount');
+        const totalCount = document.getElementById('totalCount');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const totalResults = document.getElementById('totalResults');
+        const logOutput = document.getElementById('logOutput');
+        
+        // State variables
+        let isScanning = false;
+        let currentScanProcess = null;
+        let hitCount = 0;
+        let badCount = 0;
+        let totalMacs = 0;
+        let processedMacs = 0;
+        let hitResults = [];
+        let allResults = [];
+        
+        // File upload area click event
+        fileUploadArea.addEventListener('click', () => {
+            macFileInput.click();
+        });
+        
+        // File input change event
+        macFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileNameDisplay.textContent = `Seçilen dosya: ${file.name} (${formatFileSize(file.size)})`;
+                logToConsole(`Dosya yüklendi: ${file.name}`, 'info');
+            }
+        });
+        
+        // File drag and drop
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.backgroundColor = 'rgba(33, 150, 243, 0.15)';
+        });
+        
+        fileUploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.backgroundColor = 'rgba(33, 150, 243, 0.05)';
+        });
+        
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.backgroundColor = 'rgba(33, 150, 243, 0.05)';
+            
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.txt')) {
+                macFileInput.files = e.dataTransfer.files;
+                fileNameDisplay.textContent = `Seçilen dosya: ${file.name} (${formatFileSize(file.size)})`;
+                logToConsole(`Dosya sürükle-bırak ile yüklendi: ${file.name}`, 'info');
+            } else {
+                logToConsole('Lütfen sadece TXT dosyası yükleyin!', 'error');
+            }
+        });
+        
+        // Scan button click event
+        scanBtn.addEventListener('click', async () => {
+            const portalUrl = portalUrlInput.value.trim();
+            const macPrefix = macPrefixInput.value.trim();
+            const file = macFileInput.files[0];
+            
+            // Validation
+            if (!portalUrl) {
+                logToConsole('Portal adresi gerekli!', 'error');
+                return;
+            }
+            
+            if (!portalUrl.startsWith('http://') && !portalUrl.startsWith('https://')) {
+                logToConsole('Portal adresi http:// veya https:// ile başlamalı!', 'error');
+                return;
+            }
+            
+            if (!file) {
+                logToConsole('MAC adresleri dosyası gerekli!', 'error');
+                return;
+            }
+            
+            if (!macPrefix) {
+                logToConsole('MAC adresi ön eki gerekli!', 'error');
+                return;
+            }
+            
+            // Reset state
+            resetScanState();
+            
+            // Read MAC addresses from file
+            try {
+                const macAddresses = await readMacFile(file);
+                totalMacs = macAddresses.length;
+                
+                if (totalMacs === 0) {
+                    logToConsole('Dosyada geçerli MAC adresi bulunamadı!', 'error');
+                    return;
+                }
+                
+                logToConsole(`${totalMacs} MAC adresi yüklendi. Tarama başlatılıyor...`, 'success');
+                
+                // Update UI
+                totalCount.textContent = totalMacs;
+                processedCount.textContent = '0';
+                progressPercent.textContent = '0%';
+                progressBar.style.width = '0%';
+                
+                // Disable scan button, enable stop button
+                scanBtn.disabled = true;
+                stopBtn.disabled = false;
+                isScanning = true;
+                
+                // Start scan simulation
+                currentScanProcess = simulateScan(portalUrl, macAddresses, macPrefix);
+                
+            } catch (error) {
+                logToConsole(`Dosya okuma hatası: ${error.message}`, 'error');
+            }
+        });
+        
+        // Stop button click event
+        stopBtn.addEventListener('click', () => {
+            if (isScanning && currentScanProcess) {
+                clearInterval(currentScanProcess);
+                isScanning = false;
+                scanBtn.disabled = false;
+                stopBtn.disabled = true;
+                logToConsole('Tarama kullanıcı tarafından durduruldu.', 'warning');
+            }
+        });
+        
+        // Export button click event
+        exportBtn.addEventListener('click', () => {
+            exportHitResults();
+        });
+        
+        // Helper functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        async function readMacFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    const lines = content.split('\n');
+                    const macAddresses = [];
+                    
+                    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+                    
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line && macRegex.test(line)) {
+                            // Standardize format to colon-separated
+                            const standardizedMac = line.replace(/-/g, ':').toUpperCase();
+                            macAddresses.push(standardizedMac);
+                        }
+                    }
+                    
+                    resolve(macAddresses);
+                };
+                
+                reader.onerror = () => {
+                    reject(new Error('Dosya okunamadı'));
+                };
+                
+                reader.readAsText(file);
+            });
+        }
+        
+        function simulateScan(portalUrl, macAddresses, macPrefix) {
+            let index = 0;
+            
+            return setInterval(() => {
+                if (index >= macAddresses.length) {
+                    // Scan completed
+                    clearInterval(currentScanProcess);
+                    isScanning = false;
+                    scanBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    exportBtn.disabled = false;
+                    
+                    logToConsole(`Tarama tamamlandı! ${hitCount} HIT, ${badCount} BAD`, 'success');
+                    
+                    // Auto-export results
+                    exportHitResults();
+                    
+                    return;
+                }
+                
+                const mac = macAddresses[index];
+                processedMacs++;
+                
+                // Check if MAC starts with prefix
+                const startsWithPrefix = mac.startsWith(macPrefix.toUpperCase().replace(/-/g, ':'));
+                
+                // Simulate HIT/BAD (demo: 30% chance of HIT)
+                const isHit = startsWithPrefix && Math.random() > 0.7;
+                
+                // Generate random expiration date for HITs
+                const expirationDate = isHit ? generateRandomDate() : null;
+                
+                // Create result object
+                const result = {
+                    mac: mac,
+                    status: isHit ? 'HIT' : 'BAD',
+                    portal: portalUrl,
+                    expiration: expirationDate,
+                    timestamp: new Date().toLocaleTimeString()
+                };
+                
+                allResults.push(result);
+                
+                if (isHit) {
+                    hitCount++;
+                    hitResults.push(result);
+                    hitCountElement.textContent = hitCount;
+                    logToConsole(`HIT: ${mac} - ${expirationDate}`, 'success');
+                } else {
+                    badCount++;
+                    badCountElement.textContent = badCount;
+                    logToConsole(`BAD: ${mac}`, 'error');
+                }
+                
+                // Update UI
+                processedCount.textContent = processedMacs;
+                const progress = (processedMacs / totalMacs) * 100;
+                progressPercent.textContent = `${Math.round(progress)}%`;
+                progressBar.style.width = `${progress}%`;
+                
+                // Display result
+                displayResult(result);
+                totalResults.textContent = allResults.length;
+                
+                index++;
+                
+            }, 300); // Process one MAC every 300ms for demo
+        }
+        
+        function displayResult(result) {
+            const resultElement = document.createElement('div');
+            resultElement.className = `result-item ${result.status.toLowerCase()}`;
+            
+            const expirationText = result.expiration ? 
+                `<div style="font-size: 12px; color: #90a4ae;">Bitiş: ${result.expiration}</div>` : '';
+            
+            resultElement.innerHTML = `
+                <div>
+                    <div class="mac-address">${result.mac}</div>
+                    ${expirationText}
+                    <div style="font-size: 12px; color: #bbdefb;">${result.timestamp}</div>
+                </div>
+                <div class="result-status status-${result.status.toLowerCase()}">
+                    ${result.status}
+                </div>
+            `;
+            
+            // Add new result at the top
+            if (resultsContainer.firstChild && resultsContainer.firstChild.tagName === 'P') {
+                resultsContainer.innerHTML = '';
+            }
+            resultsContainer.prepend(resultElement);
+        }
+        
+        function generateRandomDate() {
+            const start = new Date();
+            const end = new Date();
+            end.setMonth(end.getMonth() + 6); // 6 months from now
+            
+            const randomDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+            return randomDate.toLocaleDateString('tr-TR');
+        }
+        
+        function resetScanState() {
+            hitCount = 0;
+            badCount = 0;
+            totalMacs = 0;
+            processedMacs = 0;
+            hitResults = [];
+            allResults = [];
+            
+            hitCountElement.textContent = '0';
+            badCountElement.textContent = '0';
+            processedCount.textContent = '0';
+            totalCount.textContent = '0';
+            totalResults.textContent = '0';
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+            
+            resultsContainer.innerHTML = `
+                <p style="text-align: center; color: #90a4ae; padding: 40px;">
+                    <i class="fas fa-search" style="font-size: 40px; margin-bottom: 15px; display: block;"></i>
+                    Portal adresini girin, MAC dosyasını yükleyin ve taramayı başlatın.
+                </p>
+            `;
+            
+            exportBtn.disabled = true;
+        }
+        
+        function exportHitResults() {
+            if (hitResults.length === 0) {
+                logToConsole('İndirilecek HIT sonucu yok!', 'warning');
+                return;
+            }
+            
+            let exportContent = `IPTV HIT Sonuçları - ${new Date().toLocaleString('tr-TR')}\n`;
+            exportContent += `Portal: ${portalUrlInput.value}\n`;
+            exportContent += `Tarama Tarihi: ${new Date().toLocaleDateString('tr-TR')}\n`;
+            exportContent += "=".repeat(50) + "\n\n";
+            
+            hitResults.forEach((result, index) => {
+                exportContent += `HIT ${index + 1}:\n`;
+                exportContent += `Portal Adresi: ${result.portal}\n`;
+                exportContent += `Aktif MAC: ${result.mac}\n`;
+                exportContent += `Bitiş Tarihi: ${result.expiration}\n`;
+                exportContent += "-".repeat(30) + "\n";
+            });
+            
+            exportContent += `\nToplam HIT: ${hitResults.length}`;
+            
+            // Create download link
+            const blob = new Blob([exportContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `iptv_hit_results_${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            logToConsole(`${hitResults.length} HIT sonucu indirildi.`, 'success');
+        }
+        
+        function logToConsole(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('tr-TR', {hour12: false});
+            const typeClass = `log-${type}`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span class="${typeClass}">[${timestamp}] ${message}</span>`;
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Initialize
+        logToConsole('IPTV MAC Tarayıcı başlatıldı.', 'info');
+        
+        // Add sample MACs to file input for demo
+        setTimeout(() => {
+            const sampleMACs = [
+                "00:1A:79:12:34:56",
+                "00:1A:79:AB:CD:EF",
+                "00:1A:79:11:22:33",
+                "00:1A:78:44:55:66", // Different prefix - should be BAD
+                "00:1A:79:77:88:99",
+                "00:1A:79:AA:BB:CC",
+                "00-1A-79-DD-EE-FF", // Dash format
+                "00:1B:79:12:34:56", // Different prefix
+                "00:1A:79:FF:EE:DD",
+                "00:1A:79:55:66:77"
+            ].join('\n');
+            
+            // Create a dummy file for demo purposes
+            const blob = new Blob([sampleMACs], { type: 'text/plain' });
+            const file = new File([blob], "sample_macs.txt", { type: "text/plain" });
+            
+            // Set as default file for demo
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            macFileInput.files = dataTransfer.files;
+            fileNameDisplay.textContent = `Seçilen dosya: sample_macs.txt (demo)`;
+            
+            logToConsole('Demo MAC adresleri yüklendi. Taramayı başlatabilirsiniz.', 'info');
+        }, 1000);
+    </script>
+</body>
+</html>
