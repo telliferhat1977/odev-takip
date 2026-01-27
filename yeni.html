@@ -271,8 +271,8 @@ function openExternalMenu() {
         { n: "XVIDEOS", f: () => openExt(`https://www.xvideos.com/?k=${q.replace(/%20/g,'+')}`) },
         { n: "NOODLEMAGAZINE", f: () => openExt(`https://noodlemagazine.com/video/${q}`) },
 
-        { n: "ALLCLASSICPORN", f: () => openExt(`https://allclassicporn.com/?s=${q}`) },
-        { n: "CAT3MOVIES", f: () => openExt(`https://cat3movies.org/?s=${q}`) },
+        { n: "ALLCLASSICPORN", f: () => openExt(`https://allclassicporn.com/video/${q}`) },
+        { n: "CAT3MOVIES", f: () => openExt(`https://www.cat3movies.org/search/${q}`) },
         { n: "FILM1K", f: () => openExt(`https://film1k.com/?s=${q}`) }
     ]});
     renderMenu();
