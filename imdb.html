@@ -11,14 +11,15 @@
       font-family: Arial;
       background: #111;
       color: white;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
 
     .search-bar {
       display: flex;
       padding: 10px;
       background: #000;
-      position: sticky;
-      top: 0;
     }
 
     input {
@@ -38,10 +39,10 @@
       font-weight: bold;
     }
 
-    iframe {
-      width: 100%;
-      height: calc(100vh - 60px);
-      border: none;
+    .info {
+      text-align: center;
+      margin-top: 20px;
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -52,7 +53,9 @@
     <button onclick="search()">Ara</button>
   </div>
 
-  <iframe id="viewer"></iframe>
+  <div class="info">
+    Arama yaptığında IMDb sayfası açılır 🎬
+  </div>
 
   <script>
     function formatKeyword(text) {
@@ -72,7 +75,8 @@
         url = `https://www.imdb.com/find?q=${query}`;
       }
 
-      document.getElementById("viewer").src = url;
+      // 🔥 iframe yerine direkt yönlendirme
+      window.location.href = url;
     }
   </script>
 
