@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IMDb Arama</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #111;
+      color: white;
+    }
+
+    .search-bar {
+      display: flex;
+      padding: 10px;
+      background: #000;
+      position: sticky;
+      top: 0;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
+
+    button {
+      margin-left: 10px;
+      padding: 10px 15px;
+      background: #f5c518;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    iframe {
+      width: 100%;
+      height: calc(100vh - 60px);
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="search-bar">
+    <input id="searchInput" placeholder="Film, oyuncu veya keyword yaz..." />
+    <button onclick="search()">Ara</button>
+  </div>
+
+  <iframe id="viewer"></iframe>
+
+  <script>
+    function formatKeyword(text) {
+      return text.trim().toLowerCase().replace(/\s+/g, "-");
+    }
+
+    function search() {
+      const query = document.getElementById("searchInput").value;
+
+      if (!query) return;
+
+      let url = "";
+
+      if (query.includes(" ")) {
+        url = `https://www.imdb.com/search/keyword/?keywords=${formatKeyword(query)}`;
+      } else {
+        url = `https://www.imdb.com/find?q=${query}`;
+      }
+
+      document.getElementById("viewer").src = url;
+    }
+  </script>
+
+</body>
+</html>
