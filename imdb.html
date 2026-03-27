@@ -20,6 +20,9 @@
       display: flex;
       padding: 10px;
       background: #000;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     input {
@@ -28,7 +31,6 @@
       border-radius: 8px;
       border: none;
       font-size: 16px;
-      color: black;
     }
 
     button {
@@ -61,20 +63,21 @@
   <script>
     function search() {
       const query = document.getElementById("searchInput").value;
-
       if (!query) return;
 
-      // ✅ Keyword formatlama
+      // ✅ Boşlukları '-' ile değiştirip keyword formatı
       const keyword = query.trim().toLowerCase().replace(/\s+/g, "-");
 
       // ✅ IMDb keyword arama URL
       const url = `https://www.imdb.com/search/keyword/?keywords=${keyword}`;
 
-      // 🔥 Direkt yönlendirme
-      window.location.href = url;
+      // 🔥 Direkt web sayfası aç
+      window.location.href = url; 
+      // veya istersen yeni sekmede açmak için:
+      // window.open(url, "_blank");
     }
 
-    // Enter tuşuna basınca da çalışsın
+    // Enter tuşu ile de arama
     document.getElementById("searchInput").addEventListener("keypress", function(e) {
       if (e.key === "Enter") search();
     });
