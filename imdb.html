@@ -46,18 +46,19 @@
       text-align: center;
       margin-top: 20px;
       opacity: 0.7;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
 
   <div class="search-bar">
-    <input id="searchInput" placeholder="Keyword yaz..." />
+    <input id="searchInput" placeholder="Keyword yaz (ör: time travel)..." />
     <button onclick="search()">Ara</button>
   </div>
 
   <div class="info">
-    Yazdığınız keyword IMDb’de aranacak ve filmler/diziler görünecek 🎬
+    Keyword yaz → IMDb’de film ve diziler listelenir 🎬
   </div>
 
   <script>
@@ -65,19 +66,17 @@
       const query = document.getElementById("searchInput").value;
       if (!query) return;
 
-      // ✅ Boşlukları '-' ile değiştirip keyword formatı
+      // 🔹 boşlukları tireye çevir
       const keyword = query.trim().toLowerCase().replace(/\s+/g, "-");
 
-      // ✅ IMDb keyword arama URL
-      const url = `https://www.imdb.com/search/keyword/?keywords=${keyword}`;
+      // 🔥 DOĞRU IMDb keyword arama URL
+      const url = `https://www.imdb.com/search/title/?keywords=${keyword}&explore=keywords`;
 
-      // 🔥 Direkt web sayfası aç
-      window.location.href = url; 
-      // veya istersen yeni sekmede açmak için:
-      // window.open(url, "_blank");
+      // 🔹 sayfayı aç
+      window.location.href = url;
     }
 
-    // Enter tuşu ile de arama
+    // Enter ile arama
     document.getElementById("searchInput").addEventListener("keypress", function(e) {
       if (e.key === "Enter") search();
     });
