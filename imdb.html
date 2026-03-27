@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IMDb Arama</title>
+  <title>IMDb Keyword Arama</title>
 
   <style>
     body {
@@ -28,6 +28,7 @@
       border-radius: 8px;
       border: none;
       font-size: 16px;
+      color: black;
     }
 
     button {
@@ -49,35 +50,34 @@
 <body>
 
   <div class="search-bar">
-    <input id="searchInput" placeholder="Film, oyuncu veya keyword yaz..." />
+    <input id="searchInput" placeholder="Keyword yaz..." />
     <button onclick="search()">Ara</button>
   </div>
 
   <div class="info">
-    Arama yaptığında IMDb sayfası açılır 🎬
+    Yazdığınız keyword IMDb’de aranacak ve filmler/diziler görünecek 🎬
   </div>
 
   <script>
-    function formatKeyword(text) {
-      return text.trim().toLowerCase().replace(/\s+/g, "-");
-    }
-
     function search() {
       const query = document.getElementById("searchInput").value;
 
       if (!query) return;
 
-      let url = "";
+      // ✅ Keyword formatlama
+      const keyword = query.trim().toLowerCase().replace(/\s+/g, "-");
 
-      if (query.includes(" ")) {
-        url = `https://www.imdb.com/search/keyword/?keywords=${formatKeyword(query)}`;
-      } else {
-        url = `https://www.imdb.com/find?q=${query}`;
-      }
+      // ✅ IMDb keyword arama URL
+      const url = `https://www.imdb.com/search/keyword/?keywords=${keyword}`;
 
-      // 🔥 iframe yerine direkt yönlendirme
+      // 🔥 Direkt yönlendirme
       window.location.href = url;
     }
+
+    // Enter tuşuna basınca da çalışsın
+    document.getElementById("searchInput").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") search();
+    });
   </script>
 
 </body>
