@@ -1,116 +1,125 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IMDb Gelişmiş Arama</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMDb Gelişmiş Arama</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #111;
-      color: white;
-    }
+<style>
+body {
+  margin: 0;
+  background: #111;
+  color: white;
+  font-family: Arial;
+}
 
-    .search-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 10px;
-      background: #000;
-    }
+.container {
+  padding: 10px;
+}
 
-    input, select {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      font-size: 14px;
-    }
+input, select, button {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+}
 
-    #searchInput {
-      flex: 1 1 100%;
-    }
+.row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 8px;
+}
 
-    .year-input {
-      width: 100px;
-      text-align: center;
-    }
+input {
+  flex: 1;
+  background: #1a1a1a;
+  color: white;
+}
 
-    select {
-      width: 140px;
-    }
+select {
+  background: #1a1a1a;
+  color: white;
+}
 
-    button {
-      padding: 10px 15px;
-      background: #f5c518;
-      border: none;
-      border-radius: 8px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-  </style>
+button {
+  background: #f5c518;
+  font-weight: bold;
+}
+</style>
 </head>
 <body>
 
-  <div class="search-bar">
-    <input id="searchInput" placeholder="Keyword (ör: time travel)" />
+<div class="container">
 
-    <input id="startYear" class="year-input" placeholder="Başlangıç" />
-    <input id="endYear" class="year-input" placeholder="Bitiş" />
+  <!-- 🔍 ARAMA -->
+  <div class="row">
+    <input id="searchInput" placeholder="Keyword (örn: time travel, revenge)" />
+  </div>
 
+  <!-- 📅 YIL -->
+  <div class="row">
+    <input id="startYear" placeholder="Başlangıç yıl" />
+    <input id="endYear" placeholder="Bitiş yıl" />
+  </div>
+
+  <!-- 🔽 SIRALAMA -->
+  <div class="row">
     <select id="sortSelect">
       <option value="">Popüler</option>
       <option value="year,desc">Yeni → Eski</option>
       <option value="year,asc">Eski → Yeni</option>
-      <option value="user_rating,desc">En Yüksek Puan</option>
-      <option value="num_votes,desc">En Çok Oy Alan</option>
+      <option value="user_rating,desc">En yüksek puan</option>
+      <option value="num_votes,desc">En çok oy</option>
     </select>
 
-    <button onclick="search()">Ara</button>
+    <button onclick="search()">ARA</button>
   </div>
 
-  <script>
-    function search() {
-      const query = document.getElementById("searchInput").value;
-      const startYear = document.getElementById("startYear").value;
-      const endYear = document.getElementById("endYear").value;
-      const sort = document.getElementById("sortSelect").value;
+</div>
 
-      if (!query) return;
+<script>
+function search() {
+  let query = document.getElementById("searchInput").value;
+  const startYear = document.getElementById("startYear").value;
+  const endYear = document.getElementById("endYear").value;
+  const sort = document.getElementById("sortSelect").value;
 
-      // 🔹 keyword format
-      const keyword = query.trim().toLowerCase().replace(/\s+/g, "-");
+  if (!query) return;
 
-      let url = `https://www.imdb.com/search/title/?keywords=${keyword}&explore=keywords`;
+  // 🔥 çoklu keyword desteği
+  const keyword = query
+    .toLowerCase()
+    .split(",")
+    .map(k => k.trim().replace(/\s+/g, "-"))
+    .join(",");
 
-      // 🔥 yıl filtresi
-      if (startYear && endYear) {
-        url += `&release_date=${startYear}-01-01,${endYear}-12-31`;
-      } 
-      else if (startYear && !endYear) {
-        url += `&release_date=${startYear}-01-01,${startYear}-12-31`;
-      } 
-      else if (!startYear && endYear) {
-        url += `&release_date=${endYear}-01-01,${endYear}-12-31`;
-      }
+  let url = `https://www.imdb.com/search/title/?keywords=${keyword}&explore=keywords`;
 
-      // 🔥 sıralama
-      if (sort) {
-        url += `&sort=${sort}`;
-      }
+  // 📅 yıl filtresi
+  if (startYear && endYear) {
+    url += `&release_date=${startYear}-01-01,${endYear}-12-31`;
+  } else if (startYear) {
+    url += `&release_date=${startYear}-01-01,${startYear}-12-31`;
+  } else if (endYear) {
+    url += `&release_date=${endYear}-01-01,${endYear}-12-31`;
+  }
 
-      // 🚀 aç
-      window.location.href = url;
-    }
+  // 🔽 sıralama
+  if (sort) {
+    url += `&sort=${sort}`;
+  }
 
-    // Enter ile arama
-    document.querySelectorAll("input").forEach(el => {
-      el.addEventListener("keypress", function(e) {
-        if (e.key === "Enter") search();
-      });
-    });
-  </script>
+  // 🚀 aç
+  window.location.href = url;
+}
+
+// Enter ile arama
+document.querySelectorAll("input").forEach(el => {
+  el.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") search();
+  });
+});
+</script>
 
 </body>
 </html>
