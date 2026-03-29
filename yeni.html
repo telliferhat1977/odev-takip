@@ -25,6 +25,13 @@ body{background:var(--black);color:#fff;margin:0;padding:10px;font-family:sans-s
 <button onclick="searchContent()"
  class="px-6 bg-red-600 rounded-xl font-bold nav-item">ARA</button>
 </div>
+<div class="flex gap-2 mt-2">
+  <input id="startYear" placeholder="Başlangıç"
+   class="flex-1 p-2 bg-[#1a1a1a] rounded-xl nav-item text-sm">
+
+  <input id="endYear" placeholder="Bitiş"
+   class="flex-1 p-2 bg-[#1a1a1a] rounded-xl nav-item text-sm">
+</div>
 </header>
 
 <div id="results" class="grid grid-cols-3 sm:grid-cols-5 gap-4"></div>
@@ -99,9 +106,40 @@ async function loadShowcase() {
 
 async function searchContent() {
     const q = searchInput.value.trim();
+    const startYear = document.getElementById("startYear").value;
+    const endYear = document.getElementById("endYear").value;
+
     if (!q) return loadShowcase();
-    const r = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB}&query=${q}&language=tr`);
-    displayItems((await r.json()).results);
+
+    // 🔥 1. Önce keyword aramayı dene
+    const keywordRes = await fetch(`https://api.themoviedb.org/3/search/keyword?api_key=${TMDB}&query=${q}`);
+    const keywordData = await keywordRes.json();
+
+    let url = "";
+
+    // 🎯 Eğer keyword bulunduysa → discover kullan
+    if (keywordData.results && keywordData.results.length > 0) {
+        const keywordId = keywordData.results[0].id;
+
+        url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB}&with_keywords=${keywordId}&language=tr`;
+
+        // 📅 yıl filtresi
+        if (startYear && endYear) {
+            url += `&primary_release_date.gte=${startYear}-01-01&primary_release_date.lte=${endYear}-12-31`;
+        } else if (startYear) {
+            url += `&primary_release_date.gte=${startYear}-01-01&primary_release_date.lte=${startYear}-12-31`;
+        } else if (endYear) {
+            url += `&primary_release_date.gte=${endYear}-01-01&primary_release_date.lte=${endYear}-12-31`;
+        }
+
+        const r = await fetch(url);
+        displayItems((await r.json()).results);
+
+    } else {
+        // 🔍 keyword yoksa normal arama
+        const r = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB}&query=${q}&language=tr`);
+        displayItems((await r.json()).results);
+    }
 }
 
 function displayItems(items) {
