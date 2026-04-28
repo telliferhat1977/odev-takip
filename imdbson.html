@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMDb Pro Arama</title>
+
+<style>
+body { margin:0; background:#111; color:white; font-family:Arial; }
+.container { padding:10px; }
+
+input, select, button {
+  padding:10px; border-radius:8px; border:none; font-size:14px;
+}
+
+.row { display:flex; gap:5px; margin-bottom:8px; }
+
+input { flex:1; background:#1a1a1a; color:white; }
+
+select { background:#1a1a1a; color:white; }
+
+button { background:#f5c518; font-weight:bold; }
+
+.scroll-box {
+  max-height:140px;
+  overflow-y:auto;
+  background:#1a1a1a;
+  padding:8px;
+  border-radius:8px;
+  margin-bottom:10px;
+}
+
+label { display:block; font-size:13px; margin-bottom:4px; }
+
+.title { margin:6px 0; color:#ccc; font-size:14px; }
+
+#selected { font-size:12px; color:#aaa; margin-top:5px; }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<!-- 🔍 -->
+<div class="row">
+  <input id="searchInput" placeholder="Keyword (örn: time travel, revenge)">
+</div>
+
+<!-- 📅 -->
+<div class="row">
+  <input id="startYear" placeholder="Başlangıç yıl">
+  <input id="endYear" placeholder="Bitiş yıl">
+</div>
+
+<!-- 🔽 -->
+<div class="row">
+  <select id="sortSelect">
+    <option value="">Popüler</option>
+    <option value="year,desc">Yeni → Eski</option>
+    <option value="year,asc">Eski → Yeni</option>
+    <option value="user_rating,desc">En yüksek puan</option>
+    <option value="num_votes,desc">En çok oy</option>
+  </select>
+</div>
+
+<!-- 🌍 -->
+<div class="title">🌍 Ülkeler</div>
+<input id="countrySearch" placeholder="Ülke ara...">
+<div id="countryList" class="scroll-box"></div>
+
+<!-- 🗣️ -->
+<div class="title">🗣️ Diller</div>
+<input id="langSearch" placeholder="Dil ara...">
+<div id="langList" class="scroll-box"></div>
+
+<!-- 🔘 -->
+<div class="row">
+  <button onclick="search()">ARA</button>
+  <button onclick="clearFilters()">Temizle</button>
+</div>
+
+<div id="selected"></div>
+
+</div>
+
+<script>
+// 🌍 ÜLKELER (geniş)
+const countries = {
+  us:"ABD", tr:"Türkiye", gb:"İngiltere", fr:"Fransa", de:"Almanya", it:"İtalya",
+  es:"İspanya", nl:"Hollanda", se:"İsveç", no:"Norveç", dk:"Danimarka", fi:"Finlandiya",
+  pl:"Polonya", ru:"Rusya", ua:"Ukrayna", ro:"Romanya", gr:"Yunanistan", pt:"Portekiz",
+  br:"Brezilya", mx:"Meksika", ar:"Arjantin", cl:"Şili", ca:"Kanada", au:"Avustralya",
+  nz:"Yeni Zelanda", cn:"Çin", jp:"Japonya", kr:"Güney Kore", in:"Hindistan",
+  pk:"Pakistan", ir:"İran", sa:"Suudi Arabistan", ae:"BAE", eg:"Mısır", za:"Güney Afrika"
+};
+
+// 🗣️ DİLLER
+const languages = {
+  en:"İngilizce", tr:"Türkçe", es:"İspanyolca", fr:"Fransızca", de:"Almanca",
+  it:"İtalyanca", pt:"Portekizce", ru:"Rusça", zh:"Çince", ja:"Japonca",
+  ko:"Korece", hi:"Hintçe", ar:"Arapça", fa:"Farsça", nl:"Felemenkçe",
+  sv:"İsveççe", no:"Norveççe", da:"Danca", fi:"Fince", pl:"Lehçe",
+  cs:"Çekçe", el:"Yunanca", he:"İbranice", th:"Tayca", vi:"Vietnamca"
+};
+
+// 🔄 liste render
+function renderList(data, containerId, className, filter="") {
+  const box = document.getElementById(containerId);
+  box.innerHTML = "";
+
+  Object.entries(data).forEach(([code, name]) => {
+    if (name.toLowerCase().includes(filter.toLowerCase())) {
+      const label = document.createElement("label");
+      label.innerHTML = `<input type="checkbox" class="${className}" value="${code}"> ${name}`;
+      box.appendChild(label);
+    }
+  });
+}
+
+// 🔍 filtreleme
+document.getElementById("countrySearch").oninput = e =>
+  renderList(countries,"countryList","country",e.target.value);
+
+document.getElementById("langSearch").oninput = e =>
+  renderList(languages,"langList","language",e.target.value);
+
+// ilk yükleme
+renderList(countries,"countryList","country");
+renderList(languages,"langList","language");
+
+// seçilenleri al
+function getSelected(cls){
+  return [...document.querySelectorAll(`.${cls}:checked`)].map(x=>x.value).join(",");
+}
+
+// UI güncelle
+function updateUI(){
+  const c=getSelected("country");
+  const l=getSelected("language");
+  document.getElementById("selected").innerText =
+    (c?"🌍 "+c:"") + " " + (l?"🗣️ "+l:"");
+}
+
+document.addEventListener("change", e=>{
+  if(e.target.type==="checkbox") updateUI();
+});
+
+// 🔍 ARAMA
+function search(){
+  let query=document.getElementById("searchInput").value;
+  if(!query) return;
+
+  const start=document.getElementById("startYear").value;
+  const end=document.getElementById("endYear").value;
+  const sort=document.getElementById("sortSelect").value;
+
+  const countriesSel=getSelected("country");
+  const langsSel=getSelected("language");
+
+  const keyword=query.toLowerCase()
+    .split(",")
+    .map(k=>k.trim().replace(/\s+/g,"-"))
+    .join(",");
+
+  let url=`https://www.imdb.com/search/title/?keywords=${keyword}&explore=keywords`;
+
+  if(start||end){
+    url+=`&release_date=${start||"1900"}-01-01,${end||"2025"}-12-31`;
+  }
+
+  if(sort) url+=`&sort=${sort}`;
+  if(countriesSel) url+=`&countries=${countriesSel}`;
+  if(langsSel) url+=`&languages=${langsSel}`;
+
+  window.location.href=url;
+}
+
+// ❌ temizle
+function clearFilters(){
+  document.querySelectorAll("input[type=checkbox]").forEach(x=>x.checked=false);
+  updateUI();
+}
+</script>
+
+</body>
+</html>
