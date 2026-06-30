@@ -59,7 +59,7 @@
     aspect-ratio: 4/3;
     overflow:hidden;
   }
-  video, canvas{
+  video, #overlay{
     position:absolute;
     top:0;left:0;
     width:100%;
@@ -211,8 +211,8 @@
     <button id="recognizeInPhotoBtn" class="accent" disabled>Fotoğrafta Tanı</button>
   </div>
   <div class="hint">Kalabalık bir fotoğraf yükle, içindeki tüm yüzler taranır ve öğrettiğin kişi(ler) bulunursa üzerine isim yazılır.</div>
-  <div id="groupStage" style="display:none; margin-top:10px; width:100%; max-width:560px; border:2px solid var(--line);">
-    <canvas id="groupCanvas" style="display:block; width:100%; height:auto;"></canvas>
+  <div id="groupStage" style="display:none; margin-top:10px; width:100%; max-width:560px; max-height:480px; overflow:auto; border:2px solid var(--line); position:relative;">
+    <canvas id="groupCanvas" style="display:block; width:100%; height:auto; position:static;"></canvas>
   </div>
 </div>
 
