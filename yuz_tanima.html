@@ -281,6 +281,7 @@ async function loadModelsWithFallback(){
       await faceapi.nets.tinyFaceDetector.loadFromUri(url);
       await faceapi.nets.faceLandmark68Net.loadFromUri(url);
       await faceapi.nets.faceRecognitionNet.loadFromUri(url);
+      await faceapi.nets.ssdMobilenetv1.loadFromUri(url);
       return true;
     }catch(e){
       lastErr = e;
@@ -411,7 +412,7 @@ recognizeInPhotoBtn.onclick = async () => {
   const ctx = groupCanvas.getContext('2d');
   ctx.drawImage(img, 0, 0, groupCanvas.width, groupCanvas.height);
 
-  const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+  const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 }))
     .withFaceLandmarks().withFaceDescriptors();
 
   if(detections.length === 0){
