@@ -184,6 +184,7 @@
 <div class="stage" id="stage">
   <video id="video" autoplay muted playsinline></video>
   <canvas id="overlay"></canvas>
+  <button id="openCameraBtn" class="accent" disabled style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:5;">📷 Kamerayı Aç</button>
 </div>
 
 <div class="status" id="status">Modeller yükleniyor…</div>
@@ -219,6 +220,7 @@
 <div class="people">
   <h2>Öğretilen Kişiler <span class="count-badge" id="countBadge">0</span></h2>
   <div id="peopleList"></div>
+  <button id="clearAllBtn" class="secondary" style="margin-top:8px;">Tümünü Sil</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -227,6 +229,8 @@ const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
 
 const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
+const openCameraBtn = document.getElementById('openCameraBtn');
+let cameraOpen = false;
 const statusEl = document.getElementById('status');
 const nameInput = document.getElementById('nameInput');
 const learnBtn = document.getElementById('learnBtn');
@@ -240,10 +244,53 @@ const recognizeBtn = document.getElementById('recognizeBtn');
 const stopBtn = document.getElementById('stopBtn');
 const peopleList = document.getElementById('peopleList');
 const countBadge = document.getElementById('countBadge');
+const clearAllBtn = document.getElementById('clearAllBtn');
 
 let labeledDescriptors = {}; // name -> array of Float32Array descriptors
 let recognizing = false;
 let rafId = null;
+
+const STORAGE_KEY = 'tani_beni_kisiler_v1';
+
+function saveToStorage(){
+  try{
+    const plain = {};
+    Object.keys(labeledDescriptors).forEach(name => {
+      plain[name] = labeledDescriptors[name].map(d => Array.from(d));
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(plain));
+  }catch(e){
+    console.error('Kaydetme hatası:', e);
+  }
+}
+
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const plain = JSON.parse(raw);
+    Object.keys(plain).forEach(name => {
+      labeledDescriptors[name] = plain[name].map(arr => new Float32Array(arr));
+    });
+  }catch(e){
+    console.error('Yükleme hatası:', e);
+  }
+}
+
+function clearStorage(){
+  localStorage.removeItem(STORAGE_KEY);
+  labeledDescriptors = {};
+  renderPeople();
+  updateRecognizeAvailability();
+}
+
+clearAllBtn.onclick = () => {
+  if(Object.keys(labeledDescriptors).length === 0) return;
+  if(confirm('Öğretilen tüm kişiler silinsin mi? Bu işlem geri alınamaz.')){
+    clearStorage();
+    setStatus('Tüm kayıtlı kişiler silindi.');
+  }
+};
 
 function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -257,14 +304,14 @@ function renderPeople(){
     chip.innerHTML = `${name} (${labeledDescriptors[name].length} örnek) `;
     const del = document.createElement('button');
     del.textContent = 'sil';
-    del.onclick = () => { delete labeledDescriptors[name]; renderPeople(); updateRecognizeAvailability(); };
+    del.onclick = () => { delete labeledDescriptors[name]; saveToStorage(); renderPeople(); updateRecognizeAvailability(); };
     chip.appendChild(del);
     peopleList.appendChild(chip);
   });
 }
 
 function updateRecognizeAvailability(){
-  recognizeBtn.disabled = Object.keys(labeledDescriptors).length === 0 || recognizing;
+  recognizeBtn.disabled = Object.keys(labeledDescriptors).length === 0 || recognizing || !cameraOpen;
 }
 
 const MODEL_SOURCES = [
@@ -292,6 +339,8 @@ async function loadModelsWithFallback(){
 }
 
 async function init(){
+  loadFromStorage();
+  renderPeople();
   if(typeof faceapi === 'undefined'){
     setStatus('face-api.js kütüphanesi yüklenemedi. Sayfanın internete (https) erişimi olmalı, dosyayı doğrudan açmak yerine bir web sunucusundan/hosting üzerinden açmayı dene.');
     return;
@@ -303,6 +352,22 @@ async function init(){
     return;
   }
 
+  setStatus('Hazır. Fotoğraftan öğretebilir veya kamerayı açabilirsin.');
+  nameInput.disabled = false;
+  photoInput.disabled = false;
+  learnFromPhotoBtn.disabled = false;
+  groupPhotoInput.disabled = false;
+  recognizeInPhotoBtn.disabled = false;
+  openCameraBtn.disabled = false;
+  updateRecognizeAvailability();
+  if(Object.keys(labeledDescriptors).length > 0){
+    setStatus('Hazır. Daha önce öğrettiğin kişiler kayıtlı bulundu.');
+  }
+}
+
+async function openCamera(){
+  openCameraBtn.disabled = true;
+  setStatus('Kamera izni isteniyor…');
   try{
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width:560, height:420 } });
     video.srcObject = stream;
@@ -311,17 +376,17 @@ async function init(){
     overlay.height = video.videoHeight;
   }catch(e){
     setStatus('Kameraya erişilemedi. İzin verdiğinden emin ol.');
+    openCameraBtn.disabled = false;
     return;
   }
-
-  setStatus('Hazır. Bir isim yaz ve öğret.');
-  nameInput.disabled = false;
+  cameraOpen = true;
+  openCameraBtn.style.display = 'none';
   learnBtn.disabled = false;
-  photoInput.disabled = false;
-  learnFromPhotoBtn.disabled = false;
-  groupPhotoInput.disabled = false;
-  recognizeInPhotoBtn.disabled = false;
+  setStatus('Kamera açık. Bir isim yaz ve öğret.');
+  updateRecognizeAvailability();
 }
+
+openCameraBtn.onclick = openCamera;
 
 learnBtn.onclick = async () => {
   const name = nameInput.value.trim();
@@ -345,6 +410,7 @@ learnBtn.onclick = async () => {
   }
   if(!labeledDescriptors[name]) labeledDescriptors[name] = [];
   labeledDescriptors[name].push(...samples);
+  saveToStorage();
   renderPeople();
   updateRecognizeAvailability();
   setStatus(`"${name}" öğrenildi (${samples.length} örnek eklendi).`);
@@ -383,6 +449,7 @@ learnFromPhotoBtn.onclick = async () => {
   } else {
     if(!labeledDescriptors[name]) labeledDescriptors[name] = [];
     labeledDescriptors[name].push(...samples);
+    saveToStorage();
     renderPeople();
     updateRecognizeAvailability();
     setStatus(`"${name}" fotoğraf(lar)dan öğrenildi (${samples.length} örnek eklendi).`);
