@@ -211,8 +211,8 @@
     <button id="recognizeInPhotoBtn" class="accent" disabled>Fotoğrafta Tanı</button>
   </div>
   <div class="hint">Kalabalık bir fotoğraf yükle, içindeki tüm yüzler taranır ve öğrettiğin kişi(ler) bulunursa üzerine isim yazılır.</div>
-  <div class="stage" id="groupStage" style="display:none; margin-top:10px;">
-    <canvas id="groupCanvas" style="position:static; width:100%; height:auto;"></canvas>
+  <div id="groupStage" style="display:none; margin-top:10px; width:100%; max-width:560px; border:2px solid var(--line);">
+    <canvas id="groupCanvas" style="display:block; width:100%; height:auto;"></canvas>
   </div>
 </div>
 
