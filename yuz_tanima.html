@@ -195,14 +195,19 @@
     <button id="learnBtn" class="accent" disabled>Kameradan Öğret (5 kare)</button>
   </div>
   <div class="row">
-    <input type="file" id="photoInput" accept="image/*" multiple disabled style="flex:1; font-family:var(--mono); font-size:12px;">
-    <button id="learnFromPhotoBtn" class="secondary" disabled>Fotoğraftan Öğret</button>
+    <input type="file" id="photoInput" accept="image/*" disabled style="flex:1; font-family:var(--mono); font-size:12px;">
+  </div>
+  <div id="learnPhotoStage" style="display:none; width:100%; max-width:560px; max-height:480px; overflow:auto; border:2px solid var(--line); position:relative;">
+    <canvas id="learnPhotoCanvas" style="display:block; width:100%; height:auto; position:static; cursor:pointer;"></canvas>
+  </div>
+  <div class="row">
+    <button id="learnFromPhotoBtn" class="secondary" disabled>Seçilen Yüzü Öğret</button>
   </div>
   <div class="row">
     <button id="recognizeBtn" class="secondary" disabled>Tanımayı Başlat</button>
     <button id="stopBtn" class="secondary" disabled>Durdur</button>
   </div>
-  <div class="hint">Önce isim yaz. Sonra ya kameradan canlı kare al ya da galeriden net, tek yüz içeren bir veya birkaç fotoğraf seçip "Fotoğraftan Öğret"e bas. Birden fazla kişi öğretebilirsin. Ardından "Tanımayı Başlat" ile çerçeve üzerinde isim etiketleri görünür. Tüm işlem cihazında çalışır, hiçbir görüntü dışarı gönderilmez.</div>
+  <div class="hint">Önce isim yaz. Kameradan canlı öğretebilir, ya da galeriden bir fotoğraf seçtiğinde tek kişilik fotoğrafsa otomatik, kalabalık fotoğrafsa tespit edilen yüzlerden doğru kişiye tıklayarak "Seçilen Yüzü Öğret"e basabilirsin. Birden fazla kişi öğretebilirsin. Ardından "Tanımayı Başlat" ile çerçeve üzerinde isim etiketleri görünür. Tüm işlem cihazında çalışır, hiçbir görüntü dışarı gönderilmez.</div>
 </div>
 
 <div class="people">
@@ -236,6 +241,8 @@ const nameInput = document.getElementById('nameInput');
 const learnBtn = document.getElementById('learnBtn');
 const photoInput = document.getElementById('photoInput');
 const learnFromPhotoBtn = document.getElementById('learnFromPhotoBtn');
+const learnPhotoStage = document.getElementById('learnPhotoStage');
+const learnPhotoCanvas = document.getElementById('learnPhotoCanvas');
 const groupPhotoInput = document.getElementById('groupPhotoInput');
 const recognizeInPhotoBtn = document.getElementById('recognizeInPhotoBtn');
 const groupStage = document.getElementById('groupStage');
@@ -355,7 +362,6 @@ async function init(){
   setStatus('Hazır. Fotoğraftan öğretebilir veya kamerayı açabilirsin.');
   nameInput.disabled = false;
   photoInput.disabled = false;
-  learnFromPhotoBtn.disabled = false;
   groupPhotoInput.disabled = false;
   recognizeInPhotoBtn.disabled = false;
   openCameraBtn.disabled = false;
@@ -419,47 +425,121 @@ learnBtn.onclick = async () => {
   learnBtn.disabled = false;
 };
 
+let learnPhotoDetections = [];
+let learnPhotoSelectedIndex = -1;
+let learnPhotoScale = 1;
+
+photoInput.onchange = async () => {
+  const files = photoInput.files;
+  if(!files || files.length === 0) return;
+
+  learnFromPhotoBtn.disabled = true;
+  learnPhotoStage.style.display = 'none';
+  setStatus('Fotoğraf taranıyor…');
+
+  const img = await loadImageFromFile(files[0]);
+
+  learnPhotoCanvas.width = img.naturalWidth || img.width;
+  learnPhotoCanvas.height = img.naturalHeight || img.height;
+  const ctx = learnPhotoCanvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, learnPhotoCanvas.width, learnPhotoCanvas.height);
+
+  learnPhotoDetections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+    .withFaceLandmarks().withFaceDescriptors();
+  learnPhotoSelectedIndex = -1;
+  learnPhotoScale = Math.max(1, learnPhotoCanvas.width / 700);
+
+  learnPhotoStage.style.display = 'block';
+  redrawLearnPhotoBoxes();
+
+  if(learnPhotoDetections.length === 0){
+    setStatus('Fotoğrafta yüz bulunamadı.');
+  } else if(learnPhotoDetections.length === 1){
+    learnPhotoSelectedIndex = 0;
+    redrawLearnPhotoBoxes();
+    setStatus('1 yüz bulundu ve otomatik seçildi. İsim yaz ve "Seçilen Yüzü Öğret"e bas.');
+    learnFromPhotoBtn.disabled = false;
+  } else {
+    setStatus(`${learnPhotoDetections.length} yüz bulundu. Doğru kişiye dokun/tıkla, sonra isim yazıp öğret.`);
+  }
+};
+
+function redrawLearnPhotoBoxes(){
+  const ctx = learnPhotoCanvas.getContext('2d');
+  // Yeniden çiz: önce orijinal görüntüyü saklamak yerine kutuları yeniden hesaplamak için detections üstünden git
+  learnPhotoDetections.forEach((d, i) => {
+    const box = d.detection.box;
+    const selected = i === learnPhotoSelectedIndex;
+    const color = selected ? '#2f8a4a' : '#c9512f';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = (selected ? 5 : 3) * learnPhotoScale;
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
+    const label = selected ? '✓ seçildi' : (i+1).toString();
+    ctx.font = (16 * learnPhotoScale) + 'px monospace';
+    const textW = ctx.measureText(label).width;
+    ctx.fillStyle = color;
+    ctx.fillRect(box.x, box.y - 24*learnPhotoScale, textW + 12*learnPhotoScale, 24*learnPhotoScale);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, box.x + 6*learnPhotoScale, box.y - 7*learnPhotoScale);
+  });
+}
+
+async function redrawLearnPhotoFromScratch(){
+  const files = photoInput.files;
+  if(!files || files.length === 0) return;
+  const img = await loadImageFromFile(files[0]);
+  const ctx = learnPhotoCanvas.getContext('2d');
+  ctx.clearRect(0,0,learnPhotoCanvas.width, learnPhotoCanvas.height);
+  ctx.drawImage(img, 0, 0, learnPhotoCanvas.width, learnPhotoCanvas.height);
+  redrawLearnPhotoBoxes();
+}
+
+learnPhotoCanvas.addEventListener('click', async (e) => {
+  if(learnPhotoDetections.length <= 1) return;
+  const rect = learnPhotoCanvas.getBoundingClientRect();
+  const scaleX = learnPhotoCanvas.width / rect.width;
+  const scaleY = learnPhotoCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+  let foundIndex = -1;
+  for(let i=0; i<learnPhotoDetections.length; i++){
+    const box = learnPhotoDetections[i].detection.box;
+    if(x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height){
+      foundIndex = i;
+      break;
+    }
+  }
+  if(foundIndex >= 0){
+    learnPhotoSelectedIndex = foundIndex;
+    await redrawLearnPhotoFromScratch();
+    setStatus(`${foundIndex+1}. yüz seçildi. İsim yazıp "Seçilen Yüzü Öğret"e bas.`);
+    learnFromPhotoBtn.disabled = false;
+  }
+});
+
 learnFromPhotoBtn.onclick = async () => {
   const name = nameInput.value.trim();
   if(!name){ setStatus('Önce bir isim yaz.'); return; }
-  const files = photoInput.files;
-  if(!files || files.length === 0){ setStatus('Önce bir veya birkaç fotoğraf seç.'); return; }
-
-  learnFromPhotoBtn.disabled = true;
-  nameInput.disabled = true;
-  photoInput.disabled = true;
-
-  const samples = [];
-  for(let i=0; i<files.length; i++){
-    setStatus(`"${name}" için fotoğraf işleniyor… ${i+1}/${files.length}`);
-    const file = files[i];
-    const img = await loadImageFromFile(file);
-    const det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks().withFaceDescriptor();
-    if(det){
-      samples.push(det.descriptor);
-    } else {
-      setStatus(`Uyarı: "${file.name}" içinde yüz bulunamadı, atlandı.`);
-      await new Promise(r => setTimeout(r, 800));
-    }
+  if(learnPhotoSelectedIndex < 0 || !learnPhotoDetections[learnPhotoSelectedIndex]){
+    setStatus('Önce fotoğrafta bir yüz seç.');
+    return;
   }
 
-  if(samples.length === 0){
-    setStatus('Hiçbir fotoğrafta yüz bulunamadı. Net, tek yüz içeren bir fotoğraf dene.');
-  } else {
-    if(!labeledDescriptors[name]) labeledDescriptors[name] = [];
-    labeledDescriptors[name].push(...samples);
-    saveToStorage();
-    renderPeople();
-    updateRecognizeAvailability();
-    setStatus(`"${name}" fotoğraf(lar)dan öğrenildi (${samples.length} örnek eklendi).`);
-  }
+  const descriptor = learnPhotoDetections[learnPhotoSelectedIndex].descriptor;
+  if(!labeledDescriptors[name]) labeledDescriptors[name] = [];
+  labeledDescriptors[name].push(descriptor);
+  saveToStorage();
+  renderPeople();
+  updateRecognizeAvailability();
+  setStatus(`"${name}" seçilen yüzden öğrenildi.`);
 
   nameInput.value = '';
-  nameInput.disabled = false;
-  learnFromPhotoBtn.disabled = false;
-  photoInput.disabled = false;
+  learnFromPhotoBtn.disabled = true;
+  learnPhotoStage.style.display = 'none';
   photoInput.value = '';
+  learnPhotoDetections = [];
+  learnPhotoSelectedIndex = -1;
 };
 
 recognizeInPhotoBtn.onclick = async () => {
