@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tanı beni</title>
+<title>Tanı Beni</title>
 <style>
   :root{
     --ink:#16140f;
@@ -245,13 +245,38 @@ function updateRecognizeAvailability(){
   recognizeBtn.disabled = Object.keys(labeledDescriptors).length === 0 || recognizing;
 }
 
+const MODEL_SOURCES = [
+  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
+  'https://justadudewhohacks.github.io/face-api.js/models',
+  'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'
+];
+
+async function loadModelsWithFallback(){
+  let lastErr = null;
+  for(const url of MODEL_SOURCES){
+    try{
+      setStatus('Modeller yükleniyor… (' + url + ')');
+      await faceapi.nets.tinyFaceDetector.loadFromUri(url);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(url);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(url);
+      return true;
+    }catch(e){
+      lastErr = e;
+      console.error('Model kaynağı başarısız:', url, e);
+    }
+  }
+  throw lastErr;
+}
+
 async function init(){
+  if(typeof faceapi === 'undefined'){
+    setStatus('face-api.js kütüphanesi yüklenemedi. Sayfanın internete (https) erişimi olmalı, dosyayı doğrudan açmak yerine bir web sunucusundan/hosting üzerinden açmayı dene.');
+    return;
+  }
   try{
-    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    await loadModelsWithFallback();
   }catch(e){
-    setStatus('Model yüklenemedi. İnternet bağlantını kontrol et.');
+    setStatus('Model yüklenemedi. Hata: ' + (e && e.message ? e.message : e) + ' — Lütfen internet bağlantını kontrol et veya sayfayı bir hosting üzerinden (https://) aç.');
     return;
   }
 
